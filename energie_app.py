@@ -41,7 +41,9 @@ SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
     "zaplaceno", "zaplaceno_k_datu", "den_splatnosti", "rezerva_pct", "cena_plati",
+    "ucet", "vs",
 ]
+SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:-2]  # starší tabulky bez platebních údajů
 
 # Výchozí data z faktur (použijí se jen při prvním spuštění, když je tabulka prázdná)
 VYCHOZI_ODECTY = [
@@ -65,15 +67,18 @@ VYCHOZI_TARIFY = [
     {"energie": "elektrina", "dodavatel": "E.ON", "cena_za_kwh": 6.28731, "kwh_na_jednotku": 1,
      "mesicni_platy": 407.61, "zaloha": 2110, "obdobi_od": "2026-01-06", "stav_obdobi_od": 50963,
      "obdobi_do": "2027-01-06", "zaplaceno": 20390, "zaplaceno_k_datu": "2026-10-20",
-     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)"},
+     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)",
+     "ucet": "19-17608231/0100", "vs": "6401196187"},
     {"energie": "plyn", "dodavatel": "E.ON", "cena_za_kwh": 1.48004, "kwh_na_jednotku": 10.92,
      "mesicni_platy": 384.36, "zaloha": 1310, "obdobi_od": "2026-10-08", "stav_obdobi_od": 6391,
      "obdobi_do": "2027-10-08", "zaplaceno": 1000, "zaplaceno_k_datu": "2026-10-20",
-     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027"},
+     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027",
+     "ucet": "19-17608231/0100", "vs": "6401196186"},
     {"energie": "voda", "dodavatel": "VS Chrudim", "cena_za_kwh": 143.04, "kwh_na_jednotku": 1,
      "mesicni_platy": 81.08, "zaloha": 2000, "obdobi_od": "2026-05-15", "stav_obdobi_od": 2283,
      "obdobi_do": "2027-05-15", "zaplaceno": 10000, "zaplaceno_k_datu": "2026-10-20",
-     "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení"},
+     "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení",
+     "ucet": "1092006008/5500", "vs": "4200385398"},
 ]
 
 
@@ -106,7 +111,7 @@ class Uloziste:
         df = df.dropna(how="all")
         if df.empty or not set(sloupce).issubset(df.columns):
             return None
-        return df[sloupce]
+        return df
 
     def uloz(self, list_, df):
         if self.gs:
@@ -125,6 +130,8 @@ def nove_id():
 
 def nacti_data(ul):
     odecty = ul.nacti("odecty", SLOUPCE_ODECTY)
+    if odecty is not None:
+        odecty = odecty[SLOUPCE_ODECTY]
     if odecty is None:
         odecty = pd.DataFrame(
             [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p}
@@ -132,10 +139,21 @@ def nacti_data(ul):
             columns=SLOUPCE_ODECTY,
         )
         ul.uloz("odecty", odecty)
-    tarify = ul.nacti("tarify", SLOUPCE_TARIFY)
+    tarify = ul.nacti("tarify", SLOUPCE_TARIFY_ZAKLAD)
     if tarify is None:
         tarify = pd.DataFrame(VYCHOZI_TARIFY, columns=SLOUPCE_TARIFY)
         ul.uloz("tarify", tarify)
+    else:
+        # doplnění sloupců z novější verze appky (platební údaje) bez přepsání tvých úprav
+        chybi = [c for c in SLOUPCE_TARIFY if c not in tarify.columns]
+        if chybi:
+            vych = {d["energie"]: d for d in VYCHOZI_TARIFY}
+            for c in chybi:
+                tarify[c] = tarify["energie"].map(lambda e: vych.get(e, {}).get(c, ""))
+            ul.uloz("tarify", tarify[SLOUPCE_TARIFY])
+        tarify = tarify[SLOUPCE_TARIFY].copy()
+    tarify["ucet"] = tarify["ucet"].fillna("").astype(str)
+    tarify["vs"] = tarify["vs"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
     odecty = odecty.copy()
     odecty["id"] = odecty["id"].astype(str)
     odecty["datum"] = pd.to_datetime(odecty["datum"]).dt.date
@@ -249,6 +267,38 @@ def datum_cz(d):
     return f"{d.day}. {d.month}. {d.year}"
 
 
+def iban_cz(ucet):
+    """Převede české číslo účtu (předčíslí-číslo/kód banky) na IBAN."""
+    try:
+        cislo_cast, banka = ucet.strip().split("/")
+        if "-" in cislo_cast:
+            predcisli, cislo_uctu = cislo_cast.split("-")
+        else:
+            predcisli, cislo_uctu = "0", cislo_cast
+        bban = banka.zfill(4) + predcisli.zfill(6) + cislo_uctu.zfill(10)
+        kontrola = 98 - int(bban + "123500") % 97
+        return f"CZ{kontrola:02d}{bban}"
+    except Exception:
+        return None
+
+
+def qr_platba(ucet, castka, vs, zprava):
+    """QR platba (formát SPD) jako PNG."""
+    iban = iban_cz(str(ucet))
+    if not iban:
+        return None
+    try:
+        import io
+        import qrcode
+        spd = f"SPD*1.0*ACC:{iban}*AM:{castka:.2f}*CC:CZK*X-VS:{vs}*MSG:{zprava.upper()}"
+        img = qrcode.make(spd, box_size=8, border=2)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
 # ─────────────────────────────────────────────
 # VZHLED
 # ─────────────────────────────────────────────
@@ -273,6 +323,17 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .hero-kpi .s {{ font-size: .75rem; color: {BARVA_TEXT_TLUMENY}; }}
 @media (max-width: 520px) {{ .hero-grid {{ grid-template-columns: 1fr 1fr; }} .hero-kpi:last-child {{ grid-column: span 2; }} }}
 
+.platby {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }}
+@media (max-width: 640px) {{ .platby {{ grid-template-columns: 1fr; }} }}
+.platba {{ background: rgba(15,23,42,.55); border: 1px solid rgba(148,163,184,.15); border-top: 3px solid var(--acc);
+  border-radius: 14px; padding: 10px 12px; }}
+.p-hlava {{ font-size: .8rem; font-weight: 700; color: #e2e8f0; }}
+.p-castka {{ font-size: 1.3rem; font-weight: 700; color: #f8fafc; font-variant-numeric: tabular-nums; margin-top: 2px; }}
+.p-castka span {{ font-size: .75rem; font-weight: 500; color: {BARVA_TEXT_TLUMENY}; }}
+.p-stav {{ display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #e2e8f0; margin: 2px 0 6px; }}
+.p-udaje {{ display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; font-size: .78rem; }}
+.p-udaje span {{ color: {BARVA_TEXT_TLUMENY}; }}
+.p-udaje b {{ color: #e2e8f0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; user-select: all; }}
 .chips {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }}
 .chip {{ display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
   font-size: .82rem; font-weight: 600; border: 1px solid rgba(148,163,184,.2); background: rgba(30,41,59,.6); color: #e2e8f0; }}
@@ -375,6 +436,32 @@ bilance_celkem = sum(v["bilance"] for v in platne)
 mesicne_celkem = sum(v["mesicne"] for v in platne)
 barva_bil = BARVA_OK if bilance_celkem >= 0 else BARVA_ZLE
 
+tarif_podle = {r["energie"]: r for _, r in tarify.iterrows()}
+platby_html = []
+for e in PORADI:
+    v = vysledky.get(e)
+    t = tarif_podle.get(e)
+    if not v or t is None:
+        continue
+    txt, barva, _ = stav_zalohy(v)
+    if txt == "Optimální":
+        stav_txt = "záloha sedí"
+    elif txt == "Málo":
+        stav_txt = f"zvednout na {kc(v['doporucena'])}"
+    else:
+        stav_txt = f"snížit na {kc(v['doporucena'])}"
+    platby_html.append(f"""
+    <div class="platba" style="--acc:{ENERGIE[e]['barva']}">
+      <div class="p-hlava">{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}</div>
+      <div class="p-castka">{kc(v['zaloha'])}<span> / měs.</span></div>
+      <div class="p-stav"><span class="dot" style="background:{barva}"></span>{stav_txt}</div>
+      <div class="p-udaje">
+        <span>Účet</span><b>{t['ucet'] or '–'}</b>
+        <span>VS</span><b>{t['vs'] or '–'}</b>
+        <span>Splatnost</span><b>{int(t['den_splatnosti'])}. v měsíci</b>
+      </div>
+    </div>""")
+
 st.markdown(f"""
 <div class="hero">
   <h1>⚡ Energie doma</h1>
@@ -384,24 +471,34 @@ st.markdown(f"""
     <div class="hero-kpi"><div class="l">Zálohy na nulu</div><div class="v">{kc(zalohy_nulu)}</div><div class="s">rozdíl {kc_znamenko(zalohy_nulu - zalohy_ted)}</div></div>
     <div class="hero-kpi"><div class="l">Odhad vyúčtování</div><div class="v" style="color:{barva_bil}">{kc_znamenko(bilance_celkem)}</div><div class="s">≈ {kc(mesicne_celkem)} měsíčně skutečně</div></div>
   </div>
+  <div class="platby">{"".join(platby_html)}</div>
 </div>
 """, unsafe_allow_html=True)
 
-chips = []
-for e in PORADI:
-    v = vysledky.get(e)
-    if not v:
-        continue
-    txt, barva, _ = stav_zalohy(v)
-    if txt == "Optimální":
-        popis = "záloha sedí"
-    elif txt == "Málo":
-        popis = f"zvednout na {kc(v['doporucena'])}"
-    else:
-        popis = f"snížit na {kc(v['doporucena'])}"
-    chips.append(f'<span class="chip"><span class="dot" style="background:{barva}"></span>'
-                 f'{ENERGIE[e]["ikona"]} {ENERGIE[e]["nazev"]}: {popis}</span>')
-st.markdown(f'<div class="chips">{"".join(chips)}</div>', unsafe_allow_html=True)
+with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování"):
+    qr_zal = st.tabs([f"{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}" for e in PORADI])
+    for e, tab in zip(PORADI, qr_zal):
+        with tab:
+            t = tarif_podle.get(e)
+            v = vysledky.get(e)
+            if t is None or not v:
+                continue
+            castka = st.number_input("Částka (Kč)", value=float(v["zaloha"]), step=10.0, format="%.0f", key=f"qr_c_{e}")
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                png = qr_platba(t["ucet"], castka, t["vs"], f"Zaloha {ENERGIE[e]['nazev']}")
+                if png:
+                    st.image(png, width=220)
+                    st.caption("Naskenuj v bankovní aplikaci (QR platba).")
+                else:
+                    st.caption("QR kód nejde vytvořit – zkontroluj číslo účtu v ⚙️ Ceny a zálohy.")
+            with c2:
+                st.caption("Účet")
+                st.code(t["ucet"], language=None)
+                st.caption("Variabilní symbol")
+                st.code(t["vs"], language=None)
+                st.caption(f"Splatnost {int(t['den_splatnosti'])}. v měsíci · {t['dodavatel']}")
+            st.caption("Platíš-li trvalým příkazem, po změně zálohy uprav i jeho výši v bance.")
 
 if "ulozeno" in st.session_state:
     st.success(st.session_state.pop("ulozeno"))
@@ -632,13 +729,18 @@ with st.expander("⚙️ Ceny a zálohy"):
             c1, c2 = st.columns(2)
             rezerva = c1.number_input("Rezerva na zdražení (%)", value=float(t["rezerva_pct"]), step=1.0, format="%.0f")
             plati = c2.text_input("Cena platí", value=str(t["cena_plati"]))
+            c1, c2, c3 = st.columns([3, 2, 1])
+            ucet = c1.text_input("Účet pro zálohy", value=str(t["ucet"]), placeholder="předčíslí-číslo/banka")
+            vs = c2.text_input("Variabilní symbol", value=str(t["vs"]))
+            den = c3.number_input("Splatnost (den)", value=int(t["den_splatnosti"]), min_value=1, max_value=28, step=1)
             if st.form_submit_button("Uložit", width="stretch"):
                 ven = tarify.copy()
                 m = ven["energie"] == e
                 ven.loc[m, ["zaloha", "cena_za_kwh", "mesicni_platy", "kwh_na_jednotku", "obdobi_od", "obdobi_do",
-                            "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati"]] = [
+                            "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati",
+                            "ucet", "vs", "den_splatnosti"]] = [
                     zaloha, cena, mes, prepocet, od.isoformat(), do.isoformat(), stav_od,
-                    zaplaceno, k_datu.isoformat(), rezerva, plati]
+                    zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den]
                 ul.uloz("tarify", ven[SLOUPCE_TARIFY])
                 st.session_state["ulozeno"] = f"{info['nazev']}: ceny a zálohy uloženy."
                 st.rerun()
