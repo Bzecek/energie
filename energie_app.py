@@ -207,6 +207,10 @@ def spocitej(energie, odecty, t, dnes):
     doporucena = (naklad - zaplaceno) / zbyva if zbyva > 0 else None
     if doporucena is not None:
         doporucena = max(0, -(-doporucena // 50) * 50)
+    # „Vyúčtování k poslednímu odečtu“ – co je spotřebováno a co zaplaceno k datu posledního stavu
+    mesicu_dosud = max(0, (posl["datum"] - od).days) / (365 / 12)
+    naklad_dosud = pouzito * kwh * cena + mesicu_dosud * mes
+    zaplaceno_dosud, _ = platby(t, posl["datum"])
     # tempo mezi posledními dvěma odečty
     tempo = None
     if len(rs) >= 2:
@@ -222,6 +226,8 @@ def spocitej(energie, odecty, t, dnes):
         "posledni_datum": posl["datum"], "posledni_stav": posl["stav"],
         "obdobi_od": od, "obdobi_do": do, "tempo": tempo,
         "cena_jednotky": kwh * cena, "rs": rs, "stav_od": float(t["stav_obdobi_od"]),
+        "naklad_dosud": naklad_dosud, "zaplaceno_dosud": zaplaceno_dosud,
+        "bilance_dosud": zaplaceno_dosud - naklad_dosud,
     }
 
 
@@ -295,6 +301,17 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 div.stButton > button, div.stFormSubmitButton > button {{ border-radius: 12px; min-height: 2.9rem; font-weight: 600; }}
 div[data-testid="stForm"] {{ border-radius: 16px; border: 1px solid rgba(148,163,184,.18); background: rgba(30,41,59,.35); }}
 div[data-testid="stExpander"] {{ border-radius: 16px; border: 1px solid rgba(148,163,184,.18); }}
+
+.dnes {{ background: rgba(30,41,59,.55); border: 1px solid rgba(148,163,184,.15); border-radius: 16px;
+  padding: 14px 16px; margin: 6px 0 10px; }}
+.dnes .l {{ font-size: .72rem; color: {BARVA_TEXT_TLUMENY}; text-transform: uppercase; letter-spacing: .06em; }}
+.dnes .v {{ font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }}
+.dnes .s {{ font-size: .78rem; color: {BARVA_TEXT_TLUMENY}; margin-top: 4px; }}
+.bar-radek {{ display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 10px;
+  font-size: .85rem; margin-top: 8px; color: #e2e8f0; }}
+.bar-radek b {{ font-variant-numeric: tabular-nums; font-weight: 600; min-width: 72px; text-align: right; }}
+.bar {{ height: 10px; border-radius: 999px; background: rgba(148,163,184,.15); overflow: hidden; }}
+.bar > div {{ height: 100%; border-radius: 999px; }}
 
 .paticka {{ margin-top: 30px; padding-top: 14px; border-top: 1px solid rgba(148,163,184,.2);
   font-size: .85rem; color: {BARVA_TEXT_TLUMENY}; line-height: 1.7; }}
@@ -421,8 +438,26 @@ for e, tab in zip(PORADI, zalozky):
             st.plotly_chart(budik(pomer_plan, KROKY_PLAN, b2, t2), width="stretch",
                             config={"displayModeBar": False, "staticPlot": True}, key=f"g2_{e}")
 
+        # Vyúčtování k poslednímu odečtu
+        nd, zd, bd = v["naklad_dosud"], v["zaplaceno_dosud"], v["bilance_dosud"]
+        maxi = max(nd, zd, 1)
+        barva_bd = BARVA_OK if bd >= 0 else BARVA_ZLE
+        pomer_d = zd / nd * 100 if nd > 0 else 0
+        st.markdown(f"""
+<div class="dnes">
+  <div class="dnes-hlava">
+    <div><div class="l">Kdyby vyúčtování bylo k {datum_cz(v['posledni_datum'])}</div>
+      <div class="v" style="color:{barva_bd}">{kc_znamenko(bd)}</div>
+      <div class="s">{'přeplatek' if bd >= 0 else 'nedoplatek'} · zálohy pokrývají {pomer_d:.0f} % spotřeby od {datum_cz(v['obdobi_od'])}</div></div>
+  </div>
+  <div class="bar-radek"><span>Spotřebováno</span><div class="bar"><div style="width:{nd / maxi * 100:.1f}%;background:{acc}"></div></div><b>{kc(nd)}</b></div>
+  <div class="bar-radek"><span>Zaplaceno</span><div class="bar"><div style="width:{zd / maxi * 100:.1f}%;background:{BARVA_PRIMARNI}"></div></div><b>{kc(zd)}</b></div>
+  <div class="s">{cislo(v['pouzito'], 1)} {info['jednotka']} × {cislo(v['cena_jednotky'], 2)} Kč + stálé platby. Pozor: nezahrnuje spotřebu, která teprve přijde (u plynu hlavně zima) – na konci období rozhoduje „Odhad vyúčtování“.</div>
+</div>
+""", unsafe_allow_html=True)
+
         # Dlaždice
-        barva_bil = BARVA_OK if v["bilance"] >= 0 else BARVA_ZLE
+        barva_bil =BARVA_OK if v["bilance"] >= 0 else BARVA_ZLE
         popis_bil = "přeplatek" if v["bilance"] >= 0 else "nedoplatek"
         dop = kc(v["doporucena"]) if v["doporucena"] is not None else "–"
         tempo = f"{cislo(v['tempo'], 2)} {info['jednotka']}/den" if v["tempo"] is not None else "–"
