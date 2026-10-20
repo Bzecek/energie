@@ -1,4 +1,7 @@
+import hmac
+import json
 import os
+import urllib.request
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -42,9 +45,9 @@ SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
     "zaplaceno", "zaplaceno_k_datu", "den_splatnosti", "rezerva_pct", "cena_plati",
-    "ucet", "vs",
+    "ucet", "vs", "obchodni_kwh", "obchodni_mesic",
 ]
-SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:-2]  # starší tabulky bez platebních údajů
+SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:14]  # starší tabulky bez novějších sloupců
 
 # Výchozí data z faktur (použijí se jen při prvním spuštění, když je tabulka prázdná)
 VYCHOZI_ODECTY = [
@@ -91,17 +94,20 @@ VYCHOZI_TARIFY = [
      "mesicni_platy": 407.61, "zaloha": 2110, "obdobi_od": "2026-01-06", "stav_obdobi_od": 50963,
      "obdobi_do": "2027-01-06", "zaplaceno": 20390, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)",
-     "ucet": "19-17608231/0100", "vs": "6401196187"},
+     "ucet": "19-17608231/0100", "vs": "6401196187",
+     "obchodni_kwh": 3.53925, "obchodni_mesic": 143.99},
     {"energie": "plyn", "dodavatel": "E.ON", "cena_za_kwh": 1.48004, "kwh_na_jednotku": 10.92,
      "mesicni_platy": 384.36, "zaloha": 1310, "obdobi_od": "2026-10-08", "stav_obdobi_od": 6391,
      "obdobi_do": "2027-10-08", "zaplaceno": 1000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027",
-     "ucet": "19-17608231/0100", "vs": "6401196186"},
+     "ucet": "19-17608231/0100", "vs": "6401196186",
+     "obchodni_kwh": 1.0285, "obchodni_mesic": 156.09},
     {"energie": "voda", "dodavatel": "VS Chrudim", "cena_za_kwh": 143.04, "kwh_na_jednotku": 1,
      "mesicni_platy": 81.08, "zaloha": 2000, "obdobi_od": "2026-05-15", "stav_obdobi_od": 2283,
      "obdobi_do": "2027-05-15", "zaplaceno": 10000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení",
-     "ucet": "1092006008/5500", "vs": "4200385398"},
+     "ucet": "1092006008/5500", "vs": "4200385398",
+     "obchodni_kwh": 0, "obchodni_mesic": 0},
 ]
 
 
@@ -391,6 +397,102 @@ def qr_platba(ucet, castka, vs, zprava):
 
 
 # ─────────────────────────────────────────────
+# POČASÍ A DENOSTUPNĚ (Open-Meteo, zdarma, bez registrace)
+# ─────────────────────────────────────────────
+LAT, LON = 49.844, 15.805          # Nasavrky
+T_VNITRNI, T_TOPNA_HRANICE = 19.0, 13.0
+
+
+def _stahni(url):
+    with urllib.request.urlopen(url, timeout=15) as r:
+        d = json.loads(r.read().decode("utf-8"))["daily"]
+    return {date.fromisoformat(t): v for t, v in zip(d["time"], d["temperature_2m_mean"]) if v is not None}
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def nacti_teploty(od_iso, do_iso):
+    """Průměrné denní teploty pro Nasavrky. Vrací dict datum → °C (prázdný, když služba nejde)."""
+    teploty = {}
+    try:
+        konec_archivu = min(date.fromisoformat(do_iso), date.today() - timedelta(days=6))
+        teploty.update(_stahni(
+            "https://archive-api.open-meteo.com/v1/archive?"
+            f"latitude={LAT}&longitude={LON}&start_date={od_iso}&end_date={konec_archivu.isoformat()}"
+            "&daily=temperature_2m_mean&timezone=Europe%2FPrague"))
+    except Exception:
+        pass
+    try:
+        teploty.update(_stahni(
+            "https://api.open-meteo.com/v1/forecast?"
+            f"latitude={LAT}&longitude={LON}&past_days=92&forecast_days=1"
+            "&daily=temperature_2m_mean&timezone=Europe%2FPrague"))
+    except Exception:
+        pass
+    return teploty
+
+
+def denostupne(t):
+    return T_VNITRNI - t if t <= T_TOPNA_HRANICE else 0.0
+
+
+def analyza_plynu(odecty, teploty):
+    """Rozdělí spotřebu plynu na teplou vodu/vaření (stálá denní část) a topení (úměrné denostupňům)."""
+    if not teploty:
+        return None
+    rs = platne_odecty(odecty, "plyn")
+    useky = []
+    for i in range(1, len(rs)):
+        a, b = rs.iloc[i - 1], rs.iloc[i]
+        dni = (b["datum"] - a["datum"]).days
+        if a["meridlo"] != b["meridlo"] or dni < 3 or dni > 420 or b["stav"] < a["stav"]:
+            continue
+        dny = [a["datum"] + timedelta(days=k) for k in range(dni)]
+        zname = [teploty[d] for d in dny if d in teploty]
+        if len(zname) < 0.95 * dni:
+            continue
+        dd = sum(denostupne(t) for t in zname) * dni / len(zname)
+        useky.append({"od": a["datum"], "do": b["datum"], "dni": dni, "m3": b["stav"] - a["stav"], "dd": dd})
+    if len(useky) < 3:
+        return None
+    # vážená lineární regrese: m3/den = zaklad + k * (denostupně/den)
+    w = [u["dni"] for u in useky]
+    x = [u["dd"] / u["dni"] for u in useky]
+    y = [u["m3"] / u["dni"] for u in useky]
+    sw = sum(w)
+    mx = sum(wi * xi for wi, xi in zip(w, x)) / sw
+    my = sum(wi * yi for wi, yi in zip(w, y)) / sw
+    var = sum(wi * (xi - mx) ** 2 for wi, xi in zip(w, x))
+    if var <= 0:
+        return None
+    k = sum(wi * (xi - mx) * (yi - my) for wi, xi, yi in zip(w, x, y)) / var
+    zaklad = max(0.0, my - k * mx)
+    if zaklad == 0.0:
+        k = sum(wi * xi * yi for wi, xi, yi in zip(w, x, y)) / sum(wi * xi * xi for wi, xi in zip(w, x))
+    k = max(k, 0.0)
+    for u in useky:
+        u["voda"] = zaklad * u["dni"]
+        u["topeni"] = max(0.0, u["m3"] - u["voda"])
+        u["na_dd"] = u["topeni"] / u["dd"] if u["dd"] > 20 else None
+    return {"zaklad": zaklad, "k": k, "useky": useky}
+
+
+def srovnani_pocasi(an, teploty, konec):
+    """Posledních 365 dní proti 365 dním předtím: počasí (denostupně) a topení na denostupeň."""
+    def okno(od, do):
+        dd = sum(denostupne(teploty[d]) for d in (od + timedelta(days=i) for i in range((do - od).days)) if d in teploty)
+        top, dds = 0.0, 0.0
+        for u in an["useky"]:
+            stred = u["od"] + (u["do"] - u["od"]) / 2
+            if od <= stred < do and u["dd"] > 20:
+                top += u["topeni"]
+                dds += u["dd"]
+        return dd, (top / dds if dds > 0 else None)
+    ted = okno(konec - timedelta(days=365), konec)
+    pred = okno(konec - timedelta(days=730), konec - timedelta(days=365))
+    return ted, pred
+
+
+# ─────────────────────────────────────────────
 # VZHLED
 # ─────────────────────────────────────────────
 st.markdown(f"""
@@ -443,6 +545,9 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .b-titul {{ align-self: flex-start; font-size: .72rem; color: {BARVA_TEXT_TLUMENY}; text-transform: uppercase; letter-spacing: .06em; }}
 .b-svg {{ max-width: 260px; margin-top: 4px; }}
 .b-stitek {{ margin-top: 6px; padding: 3px 12px; border-radius: 999px; font-size: .78rem; font-weight: 700; border: 1px solid; }}
+.radky-mini {{ display: grid; grid-template-columns: 1fr; gap: 2px; font-size: .88rem; color: #e2e8f0; padding-top: 18px; }}
+.radky-mini b {{ font-weight: 700; font-size: 1.05rem; margin-bottom: 8px; font-variant-numeric: tabular-nums; }}
+.mini-pozn {{ font-size: .76rem; color: {BARVA_TEXT_TLUMENY}; line-height: 1.5; }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -476,6 +581,30 @@ div[data-testid="stExpander"] {{ border-radius: 16px; border: 1px solid rgba(148
 .paticka b {{ color: #e2e8f0; font-weight: 600; }}
 </style>
 """, unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# HESLO (nastavuje se ve Streamlit Secrets: heslo = "...")
+# ─────────────────────────────────────────────
+def spravne_heslo():
+    try:
+        return st.secrets["heslo"]
+    except Exception:
+        return None
+
+
+_heslo = spravne_heslo()
+if _heslo and not st.session_state.get("prihlasen"):
+    st.markdown("""
+<div class="hero"><h1>⚡ Energie doma</h1>
+<div class="sub">Pro vstup zadej heslo.</div></div>""", unsafe_allow_html=True)
+    with st.form("prihlaseni"):
+        zadane = st.text_input("Heslo", type="password")
+        if st.form_submit_button("Vstoupit", type="primary", width="stretch"):
+            if hmac.compare_digest(zadane.encode(), str(_heslo).encode()):
+                st.session_state["prihlasen"] = True
+                st.rerun()
+            st.error("Špatné heslo.")
+    st.stop()
 
 ul = Uloziste()
 odecty, tarify = nacti_data(ul)
@@ -823,10 +952,114 @@ for e, tab in zip(PORADI, zalozky):
             st.caption("* neúplný rok (data jen za část roku). Změna = průměr na den proti předchozímu roku. "
                        "Mezi odečty je spotřeba rozpočítaná podle typického průběhu roku.")
 
+        if e == "plyn":
+            st.markdown('<div class="sekce">Počasí, topení a teplá voda</div>', unsafe_allow_html=True)
+            prvni = platne_odecty(odecty, "plyn")["datum"].min()
+            teploty = nacti_teploty((prvni - timedelta(days=1)).isoformat(), dnes.isoformat())
+            an = analyza_plynu(odecty, teploty)
+            if not an:
+                st.caption("Teploty se nepodařilo načíst nebo je zatím málo odečtů. Zkus to později.")
+            else:
+                cena_m3 = v["cena_jednotky"]
+                konec = v["posledni_datum"]
+                (dd_ted, ef_ted), (dd_pred, ef_pred) = srovnani_pocasi(an, teploty, konec)
+                voda_rok = an["zaklad"] * 365
+                rada_p = denni_rada(odecty, "plyn")
+                skut_rok = rada_p[(rada_p.index >= konec - timedelta(days=365)) & (rada_p.index < konec)].sum()
+                top_rok = max(0.0, skut_rok - voda_rok)
+                celkem = voda_rok + top_rok
+                podil_top = top_rok / celkem * 100 if celkem > 0 else 0
+
+                vety = []
+                if dd_pred > 0:
+                    zm_pocasi = (dd_ted / dd_pred - 1) * 100
+                    vety.append(f"Posledních 12 měsíců bylo **{abs(zm_pocasi):.0f} % {'chladněji' if zm_pocasi > 0 else 'tepleji'}** "
+                                f"než rok předtím ({cislo(dd_ted, 0)} vs {cislo(dd_pred, 0)} denostupňů).")
+                if ef_ted and ef_pred:
+                    zm_ef = (ef_ted / ef_pred - 1) * 100
+                    if abs(zm_ef) < 7:
+                        vety.append("Na stejné počasí topíš **zhruba stejně** jako loni – rozdíl ve spotřebě dělá hlavně počasí.")
+                    else:
+                        vety.append(f"Na stejné počasí topíš o **{abs(zm_ef):.0f} % {'víc' if zm_ef > 0 else 'míň'}** než loni"
+                                    f"{' – to už počasím nevysvětlíš, mrkni na termostat a kotel.' if zm_ef > 0 else '.'}")
+                if vety:
+                    st.markdown(" ".join(vety))
+
+                c1, c2 = st.columns([1, 1])
+                with c1:
+                    pie = go.Figure(go.Pie(
+                        labels=["Topení", "Teplá voda a vaření"], values=[top_rok, voda_rok], hole=.62, sort=False,
+                        marker=dict(colors=[ENERGIE["plyn"]["barva"], BARVA_MOC], line=dict(color="#0b1220", width=3)),
+                        textinfo="none",
+                        hovertemplate="%{label}<br>%{value:.0f} m³ (%{percent})<extra></extra>"))
+                    pie.add_annotation(text=f"<b>{podil_top:.0f} %</b><br><span style='font-size:11px'>topení</span>",
+                                       showarrow=False, font=dict(size=20, color="#f8fafc"))
+                    pie.update_layout(height=220, margin=dict(l=0, r=0, t=0, b=0), showlegend=False,
+                                      paper_bgcolor="rgba(0,0,0,0)", font=dict(family="Inter"))
+                    st.plotly_chart(pie, width="stretch", config={"displayModeBar": False}, key="kolac_plyn")
+                with c2:
+                    st.markdown(f"""
+<div class="radky-mini">
+  <div><span class="dot" style="background:{ENERGIE['plyn']['barva']}"></span> Topení</div>
+  <b>{cislo(top_rok, 0)} m³ · {kc(top_rok * cena_m3)}</b>
+  <div><span class="dot" style="background:{BARVA_MOC}"></span> Teplá voda a vaření</div>
+  <b>{cislo(voda_rok, 0)} m³ · {kc(voda_rok * cena_m3)}</b>
+  <div class="mini-pozn">Za posledních 12 měsíců, bez stálých plateb. Teplá voda ≈ {cislo(an['zaklad'], 2)} m³/den
+  ≈ {kc(an['zaklad'] * 365 / 12 * cena_m3)} měsíčně. Topení ≈ {cislo(an['k'], 3)} m³ na denostupeň.</div>
+</div>""", unsafe_allow_html=True)
+
+                radky = []
+                for u in an["useky"]:
+                    radky.append({
+                        "Období": f"{u['od'].strftime('%d.%m.%y')}–{u['do'].strftime('%d.%m.%y')}",
+                        "Spotřeba": f"{cislo(u['m3'], 0)} m³",
+                        "Topení": f"{cislo(u['topeni'], 0)} m³",
+                        "Denostupně": cislo(u["dd"], 0),
+                        "m³/denostupeň": cislo(u["na_dd"], 3) if u["na_dd"] else "–",
+                    })
+                st.dataframe(pd.DataFrame(radky[::-1]), hide_index=True, width="stretch")
+                st.caption("Denostupně = součet (19 °C − venkovní teplota) za dny, kdy je venku 13 °C a méně – měřítko, jak "
+                           "studené období bylo. Teploty pro Nasavrky z Open-Meteo. „m³/denostupeň“ ukazuje, kolik plynu stojí "
+                           "topení při stejném počasí – když roste, topíš víc nebo hůř (termostat, kotel), ne kvůli zimě.")
+
 # ─────────────────────────────────────────────
 # HISTORIE ODEČTŮ – úprava a mazání s potvrzením
 # ─────────────────────────────────────────────
 st.markdown('<div class="sekce">Správa</div>', unsafe_allow_html=True)
+with st.expander("💡 Porovnat nabídku jiného dodavatele"):
+    st.caption("Dodavatel ovlivní jen obchodní část ceny (cena za kWh + stálý plat). Distribuce a poplatky "
+               "státu jsou u všech stejné, proto se porovnává jen obchodní část – podle tvé skutečné roční spotřeby.")
+    k_e = st.radio("Energie", ["elektrina", "plyn"], horizontal=True, label_visibility="collapsed",
+                   format_func=lambda x: f"{ENERGIE[x]['ikona']} {ENERGIE[x]['nazev']}", key="kalk_e")
+    t = tarif_podle.get(k_e)
+    v = vysledky.get(k_e)
+    if t is not None and v:
+        rocni_kwh = v["rocni"] * float(t["kwh_na_jednotku"])
+        ted_mwh = float(t["obchodni_kwh"]) * 1000
+        ted_mes = float(t["obchodni_mesic"])
+        st.markdown(f"Tvoje roční spotřeba: **{cislo(rocni_kwh / 1000, 2)} MWh**. "
+                    f"Teď platíš {t['dodavatel']}: **{cislo(ted_mwh, 2)} Kč/MWh** + **{cislo(ted_mes, 2)} Kč/měsíc** (s DPH).")
+        bez_dph = st.toggle("Ceny v nabídce jsou bez DPH (přičíst 21 %)", value=True, key="kalk_dph")
+        c1, c2 = st.columns(2)
+        n_mwh = c1.number_input("Cena za MWh v nabídce (Kč)", min_value=0.0, value=None, step=10.0,
+                                placeholder="např. 2 650", key="kalk_mwh")
+        n_mes = c2.number_input("Stálý plat v nabídce (Kč/měsíc)", min_value=0.0, value=None, step=1.0,
+                                placeholder="např. 99", key="kalk_mes")
+        if n_mwh is not None and n_mes is not None:
+            koef = 1.21 if bez_dph else 1.0
+            ted_rok = rocni_kwh / 1000 * ted_mwh + 12 * ted_mes
+            nova_rok = rocni_kwh / 1000 * n_mwh * koef + 12 * n_mes * koef
+            rozdil = ted_rok - nova_rok
+            barva_r = BARVA_OK if rozdil > 0 else BARVA_ZLE
+            st.markdown(f"""
+<div class="dnes">
+  <div class="l">{'Ušetřil bys' if rozdil > 0 else 'Připlatil bys'} ročně</div>
+  <div class="v" style="color:{barva_r}">{kc(abs(rozdil))}</div>
+  <div class="s">≈ {kc(abs(rozdil) / 12)} měsíčně · obchodní část teď {kc(ted_rok)} / rok, s nabídkou {kc(nova_rok)} / rok</div>
+</div>""", unsafe_allow_html=True)
+            st.caption("Před podpisem zkontroluj i délku fixace, výpovědní lhůty a případné poplatky za předčasné ukončení.")
+    st.caption("Aktuální obchodní ceny upravíš v ⚙️ Ceny a zálohy.")
+
 with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
     filtr = st.radio("Filtr", ["vše"] + PORADI, horizontal=True, label_visibility="collapsed",
                      format_func=lambda x: "Vše" if x == "vše" else f"{ENERGIE[x]['ikona']} {ENERGIE[x]['nazev']}",
@@ -920,14 +1153,19 @@ with st.expander("⚙️ Ceny a zálohy"):
             ucet = c1.text_input("Účet pro zálohy", value=str(t["ucet"]), placeholder="předčíslí-číslo/banka")
             vs = c2.text_input("Variabilní symbol", value=str(t["vs"]))
             den = c3.number_input("Splatnost (den)", value=int(t["den_splatnosti"]), min_value=1, max_value=28, step=1)
+            c1, c2 = st.columns(2)
+            obch_kwh = c1.number_input("Obchodní cena za kWh (Kč, s DPH)", value=float(t["obchodni_kwh"]), step=0.01,
+                                       format="%.5f", disabled=(e == "voda"))
+            obch_mes = c2.number_input("Obchodní stálý plat (Kč/měs., s DPH)", value=float(t["obchodni_mesic"]),
+                                       step=1.0, format="%.2f", disabled=(e == "voda"))
             if st.form_submit_button("Uložit", width="stretch"):
                 ven = tarify.copy()
                 m = ven["energie"] == e
                 ven.loc[m, ["zaloha", "cena_za_kwh", "mesicni_platy", "kwh_na_jednotku", "obdobi_od", "obdobi_do",
                             "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati",
-                            "ucet", "vs", "den_splatnosti"]] = [
+                            "ucet", "vs", "den_splatnosti", "obchodni_kwh", "obchodni_mesic"]] = [
                     zaloha, cena, mes, prepocet, od.isoformat(), do.isoformat(), stav_od,
-                    zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den]
+                    zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den, obch_kwh, obch_mes]
                 ul.uloz("tarify", ven[SLOUPCE_TARIFY])
                 st.session_state["ulozeno"] = f"{info['nazev']}: ceny a zálohy uloženy."
                 st.rerun()
