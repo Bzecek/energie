@@ -36,7 +36,8 @@ PROFIL = {
     "voda": [8.33, 8.33, 8.33, 8.33, 8.34, 8.33, 8.33, 8.34, 8.33, 8.33, 8.33, 8.34],
 }
 
-SLOUPCE_ODECTY = ["id", "datum", "energie", "stav", "typ", "poznamka"]
+SLOUPCE_ODECTY = ["id", "datum", "energie", "stav", "typ", "poznamka", "meridlo"]
+SLOUPCE_ODECTY_ZAKLAD = SLOUPCE_ODECTY[:-1]
 SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
@@ -63,6 +64,28 @@ VYCHOZI_ODECTY = [
     ("2026-05-15", "voda", 2283, "odečet", "Faktura VS Chrudim"),
     ("2026-10-20", "voda", 2336.233, "vlastní", "Fotka vodoměru"),
 ]
+# Starší odečty z faktur předchozích dodavatelů (PPAS) a vodárny – včetně starého vodoměru
+HISTORIE_ODECTY = [
+    ("2024-01-06", "elektrina", 44358, "odečet", "Faktura PPAS", "44931016"),
+    ("2024-12-02", "elektrina", 47364, "odečet", "Faktura PPAS", "44931016"),
+    ("2024-01-04", "plyn", 4420, "odečet", "Faktura PPAS", "88939"),
+    ("2024-10-09", "plyn", 4836, "odečet", "Faktura PPAS", "88939"),
+    ("2023-05-23", "voda", 657, "odečet", "Faktura VS Chrudim (starý vodoměr)", "42008342966"),
+    ("2023-12-31", "voda", 803, "odhad", "Faktura VS Chrudim (starý vodoměr)", "42008342966"),
+    ("2024-05-22", "voda", 897, "odečet", "Faktura VS Chrudim (starý vodoměr)", "42008342966"),
+    ("2024-12-31", "voda", 980, "odhad", "Faktura VS Chrudim (starý vodoměr)", "42008342966"),
+    ("2025-01-20", "voda", 987, "odečet", "Výměna vodoměru – konečný stav starého", "42008342966"),
+    ("2025-01-20", "voda", 2110, "odečet", "Výměna vodoměru – počáteční stav nového", "8SEN0120637256"),
+]
+MERIDLO_AKTUALNI = {"elektrina": "44931016", "plyn": "88939", "voda": "8SEN0120637256"}
+
+
+def meridlo_pro(energie, datum):
+    if energie == "voda" and str(datum) < "2025-01-20":
+        return "42008342966"
+    return MERIDLO_AKTUALNI.get(energie, "")
+
+
 VYCHOZI_TARIFY = [
     {"energie": "elektrina", "dodavatel": "E.ON", "cena_za_kwh": 6.28731, "kwh_na_jednotku": 1,
      "mesicni_platy": 407.61, "zaloha": 2110, "obdobi_od": "2026-01-06", "stav_obdobi_od": 50963,
@@ -129,16 +152,26 @@ def nove_id():
 
 
 def nacti_data(ul):
-    odecty = ul.nacti("odecty", SLOUPCE_ODECTY)
-    if odecty is not None:
-        odecty = odecty[SLOUPCE_ODECTY]
+    odecty = ul.nacti("odecty", SLOUPCE_ODECTY_ZAKLAD)
     if odecty is None:
+        zaklad = [(d, e, s, t, p, meridlo_pro(e, d)) for d, e, s, t, p in VYCHOZI_ODECTY]
         odecty = pd.DataFrame(
-            [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p}
-             for i, (d, e, s, t, p) in enumerate(VYCHOZI_ODECTY)],
+            [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": m}
+             for i, (d, e, s, t, p, m) in enumerate(zaklad + HISTORIE_ODECTY)],
             columns=SLOUPCE_ODECTY,
         )
         ul.uloz("odecty", odecty)
+    elif "meridlo" not in odecty.columns:
+        # jednorázová migrace: doplnit číslo měřidla a starší odečty z faktur, tvoje záznamy zůstávají
+        odecty = odecty.copy()
+        odecty["meridlo"] = [meridlo_pro(e, str(d)[:10]) for e, d in zip(odecty["energie"], odecty["datum"])]
+        mam = {(str(d)[:10], e, round(float(st_), 3)) for d, e, st_ in zip(odecty["datum"], odecty["energie"], odecty["stav"])}
+        nove = [{"id": f"hist{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": m}
+                for i, (d, e, s, t, p, m) in enumerate(HISTORIE_ODECTY) if (d, e, round(float(s), 3)) not in mam]
+        odecty = pd.concat([odecty, pd.DataFrame(nove, columns=SLOUPCE_ODECTY)], ignore_index=True)
+        odecty["datum"] = odecty["datum"].astype(str).str[:10]
+        ul.uloz("odecty", odecty[SLOUPCE_ODECTY])
+    odecty = odecty[SLOUPCE_ODECTY]
     tarify = ul.nacti("tarify", SLOUPCE_TARIFY_ZAKLAD)
     if tarify is None:
         tarify = pd.DataFrame(VYCHOZI_TARIFY, columns=SLOUPCE_TARIFY)
@@ -160,6 +193,9 @@ def nacti_data(ul):
     odecty["stav"] = pd.to_numeric(odecty["stav"], errors="coerce")
     odecty["poznamka"] = odecty["poznamka"].fillna("").astype(str)
     odecty["typ"] = odecty["typ"].fillna("vlastní").astype(str)
+    odecty["meridlo"] = odecty["meridlo"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
+    prazdne = odecty["meridlo"] == ""
+    odecty.loc[prazdne, "meridlo"] = [meridlo_pro(e, str(d)) for e, d in zip(odecty.loc[prazdne, "energie"], odecty.loc[prazdne, "datum"])]
     return odecty, tarify
 
 
@@ -205,10 +241,65 @@ def platby(t, dnes):
     return zaplaceno, zbyva
 
 
+def platne_odecty(odecty, energie):
+    rs = odecty[(odecty["energie"] == energie) & (odecty["typ"] != "odhad")]
+    return rs.sort_values(["datum", "stav"]).reset_index(drop=True)
+
+
+def denni_rada(odecty, energie, delky=False):
+    """Denní spotřeba rozpočítaná mezi odečty (v rámci jednoho měřidla) podle sezónního profilu.
+    S delky=True vrací místo spotřeby délku úseku mezi odečty, ze kterého den pochází."""
+    rs = platne_odecty(odecty, energie)
+    dny, dl = {}, {}
+    for i in range(1, len(rs)):
+        a, b = rs.iloc[i - 1], rs.iloc[i]
+        if a["meridlo"] != b["meridlo"]:
+            continue
+        delka = (b["datum"] - a["datum"]).days
+        delta = b["stav"] - a["stav"]
+        if delka <= 0 or delka > 420 or delta < 0:
+            continue
+        vahy = []
+        d = a["datum"]
+        while d < b["datum"]:
+            dvm = ((d.replace(day=28) + timedelta(days=4)).replace(day=1) - d.replace(day=1)).days
+            vahy.append((d, PROFIL[energie][d.month - 1] / dvm))
+            d += timedelta(days=1)
+        suma = sum(w for _, w in vahy)
+        for d, w in vahy:
+            dny[d] = delta * w / suma
+            dl[d] = delka
+    vysl = dl if delky else dny
+    return pd.Series(vysl).sort_index() if vysl else pd.Series(dtype=float)
+
+
+def anomalie(odecty, energie):
+    """Porovná tempo posledního úseku se stejným obdobím o rok dřív. Vrací (poměr, text) nebo None."""
+    rs = platne_odecty(odecty, energie)
+    if len(rs) < 2:
+        return None
+    rada = denni_rada(odecty, energie)
+    a, b = rs.iloc[-2], rs.iloc[-1]
+    if a["meridlo"] != b["meridlo"] or (b["datum"] - a["datum"]).days < 5:
+        return None
+    ted = rada[(rada.index >= a["datum"]) & (rada.index < b["datum"])]
+    od_l = a["datum"] - timedelta(days=365)
+    do_l = b["datum"] - timedelta(days=365)
+    lon = rada[(rada.index >= od_l) & (rada.index < do_l)]
+    if len(lon) < 0.8 * len(ted) or lon.mean() <= 0:
+        return None
+    # loňské odečty musí být dost husté (úseky do ~2 měsíců), jinak je srovnání jen odhad
+    dl = denni_rada(odecty, energie, delky=True)
+    if dl[(dl.index >= od_l) & (dl.index < do_l)].max() > 62:
+        return None
+    return ted.mean() / lon.mean(), ted.mean(), lon.mean()
+
+
 def spocitej(energie, odecty, t, dnes):
-    rs = odecty[(odecty["energie"] == energie) & (odecty["typ"] != "odhad")].sort_values("datum").reset_index(drop=True)
+    rs = platne_odecty(odecty, energie)
     if rs.empty:
         return None
+    rs = rs[rs["meridlo"] == rs.iloc[-1]["meridlo"]].reset_index(drop=True)
     posl = rs.iloc[-1]
     od = pd.to_datetime(t["obdobi_od"]).date()
     do = pd.to_datetime(t["obdobi_do"]).date()
@@ -503,6 +594,22 @@ with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování")
 if "ulozeno" in st.session_state:
     st.success(st.session_state.pop("ulozeno"))
 
+PRAHY_ANOMALIE = {"voda": 1.2, "elektrina": 1.25, "plyn": 1.3}
+for e in PORADI:
+    an = anomalie(odecty, e)
+    if not an:
+        continue
+    pomer, ted_d, lon_d = an
+    inf = ENERGIE[e]
+    if pomer >= PRAHY_ANOMALIE[e]:
+        rada_tip = {
+            "voda": "Zkontroluj splachovadla, kohoutky a průtok na vodoměru při zavřené vodě.",
+            "elektrina": "Mrkni na nové spotřebiče, ohřev vody nebo něco, co zůstává zapnuté.",
+            "plyn": "Část může jít na vrub počasí – zkontroluj nastavení termostatu a kotle. Cítíš-li plyn, volej 1239.",
+        }[e]
+        st.warning(f"{inf['ikona']} **{inf['nazev']}:** od posledního odečtu {cislo(ted_d, 2)} {inf['jednotka']}/den, "
+                   f"loni ve stejném období {cislo(lon_d, 2)} – to je **{(pomer - 1) * 100:+.0f} %**. {rada_tip}")
+
 # ─────────────────────────────────────────────
 # ZÁLOŽKY PO ENERGIÍCH
 # ─────────────────────────────────────────────
@@ -593,7 +700,8 @@ for e, tab in zip(PORADI, zalozky):
                 st.error(f"Stav je nižší než poslední ({cislo(v['posledni_stav'], info['desetiny'])}). Zkontroluj číslo.")
             else:
                 novy = pd.DataFrame([{"id": nove_id(), "datum": dat.isoformat(), "energie": e,
-                                      "stav": stav, "typ": "vlastní", "poznamka": pozn}])
+                                      "stav": stav, "typ": "vlastní", "poznamka": pozn,
+                                      "meridlo": MERIDLO_AKTUALNI.get(e, "")}])
                 ven = pd.concat([odecty.assign(datum=odecty["datum"].astype(str)), novy], ignore_index=True)
                 ul.uloz("odecty", ven[SLOUPCE_ODECTY])
                 zprava = f"Uloženo: {info['nazev']} {cislo(stav, info['desetiny'])} {info['jednotka']}"
@@ -635,6 +743,56 @@ for e, tab in zip(PORADI, zalozky):
         st.markdown(f'<div class="pozn">Od {datum_cz(od)}: {cislo(v["pouzito"], 1)} {info["jednotka"]}, '
                     f'plán {cislo(v["plan"], 1)} {info["jednotka"]}. Plán = roční odhad rozložený podle typického průběhu roku.</div>',
                     unsafe_allow_html=True)
+
+        # Srovnání let
+        st.markdown('<div class="sekce">Srovnání let</div>', unsafe_allow_html=True)
+        rada = denni_rada(odecty, e)
+        if rada.empty:
+            st.caption("Zatím málo odečtů pro srovnání.")
+        else:
+            df_r = rada.rename("hodnota").to_frame()
+            df_r["rok"] = [d.year for d in df_r.index]
+            df_r["mesic"] = [d.month for d in df_r.index]
+            mes = df_r.groupby(["rok", "mesic"])["hodnota"].agg(["mean", "count"]).reset_index()
+            mes = mes[mes["count"] >= 10]
+            roky = sorted(mes["rok"].unique())
+            nazvy_m = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"]
+            fig2 = go.Figure()
+            for j, rok in enumerate(roky):
+                d = mes[mes["rok"] == rok]
+                posledni = rok == roky[-1]
+                fig2.add_trace(go.Scatter(
+                    x=[nazvy_m[m - 1] for m in d["mesic"]], y=d["mean"], name=str(rok), mode="lines+markers",
+                    line=dict(color=acc if posledni else None, width=3 if posledni else 2),
+                    opacity=1 if posledni else 0.55,
+                    hovertemplate=f"{rok} · " + "%{x}<br>%{y:.2f} " + info["jednotka"] + "/den<extra></extra>"))
+            fig2.update_layout(height=260, margin=dict(l=6, r=6, t=6, b=6),
+                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                               font=dict(color="#cbd5e1", family="Inter"),
+                               legend=dict(orientation="h", y=1.12, x=0),
+                               xaxis=dict(showgrid=False, categoryorder="array", categoryarray=nazvy_m),
+                               yaxis=dict(gridcolor="rgba(148,163,184,.12)", zeroline=False,
+                                          title=dict(text=f"{info['jednotka']}/den", font=dict(size=11))))
+            st.plotly_chart(fig2, width="stretch", config={"displayModeBar": False}, key=f"roky_{e}")
+
+            rocni = df_r.groupby("rok")["hodnota"].agg(["sum", "count", "mean"]).reset_index()
+            radky = []
+            for _, r in rocni.iterrows():
+                cely = r["count"] >= 360
+                radky.append({
+                    "Rok": str(int(r["rok"])) + ("" if cely else " *"),
+                    "Spotřeba": f"{cislo(r['sum'], 0)} {info['jednotka']}",
+                    "Průměr/den": f"{cislo(r['mean'], 2)}",
+                    "Náklad (dnešní ceny)": kc(r["sum"] * v["cena_jednotky"]),
+                    "Změna": "",
+                })
+            for k in range(1, len(radky)):
+                pred, ted = rocni.iloc[k - 1]["mean"], rocni.iloc[k]["mean"]
+                if pred > 0:
+                    radky[k]["Změna"] = f"{(ted / pred - 1) * 100:+.0f} %"
+            st.dataframe(pd.DataFrame(radky), hide_index=True, width="stretch")
+            st.caption("* neúplný rok (data jen za část roku). Změna = průměr na den proti předchozímu roku. "
+                       "Mezi odečty je spotřeba rozpočítaná podle typického průběhu roku.")
 
 # ─────────────────────────────────────────────
 # HISTORIE ODEČTŮ – úprava a mazání s potvrzením
