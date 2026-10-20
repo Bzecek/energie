@@ -45,7 +45,7 @@ SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
     "zaplaceno", "zaplaceno_k_datu", "den_splatnosti", "rezerva_pct", "cena_plati",
-    "ucet", "vs", "obchodni_kwh", "obchodni_mesic",
+    "ucet", "vs", "obchodni_kwh", "obchodni_mesic", "konec_smlouvy", "konec_popis",
 ]
 SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:14]  # starší tabulky bez novějších sloupců
 
@@ -95,19 +95,22 @@ VYCHOZI_TARIFY = [
      "obdobi_do": "2027-01-06", "zaplaceno": 20390, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)",
      "ucet": "19-17608231/0100", "vs": "6401196187",
-     "obchodni_kwh": 3.53925, "obchodni_mesic": 143.99},
+     "obchodni_kwh": 3.53925, "obchodni_mesic": 143.99,
+     "konec_smlouvy": "2026-12-03", "konec_popis": "Smlouva (bez fixace) končí"},
     {"energie": "plyn", "dodavatel": "E.ON", "cena_za_kwh": 1.48004, "kwh_na_jednotku": 10.92,
      "mesicni_platy": 384.36, "zaloha": 1310, "obdobi_od": "2026-10-08", "stav_obdobi_od": 6391,
      "obdobi_do": "2027-10-08", "zaplaceno": 1000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027",
      "ucet": "19-17608231/0100", "vs": "6401196186",
-     "obchodni_kwh": 1.0285, "obchodni_mesic": 156.09},
+     "obchodni_kwh": 1.0285, "obchodni_mesic": 156.09,
+     "konec_smlouvy": "2027-12-31", "konec_popis": "Fixace ceny končí"},
     {"energie": "voda", "dodavatel": "VS Chrudim", "cena_za_kwh": 143.04, "kwh_na_jednotku": 1,
      "mesicni_platy": 81.08, "zaloha": 2000, "obdobi_od": "2026-05-15", "stav_obdobi_od": 2283,
      "obdobi_do": "2027-05-15", "zaplaceno": 10000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení",
      "ucet": "1092006008/5500", "vs": "4200385398",
-     "obchodni_kwh": 0, "obchodni_mesic": 0},
+     "obchodni_kwh": 0, "obchodni_mesic": 0,
+     "konec_smlouvy": "", "konec_popis": ""},
 ]
 
 
@@ -192,6 +195,8 @@ def nacti_data(ul):
             ul.uloz("tarify", tarify[SLOUPCE_TARIFY])
         tarify = tarify[SLOUPCE_TARIFY].copy()
     tarify["ucet"] = tarify["ucet"].fillna("").astype(str)
+    tarify["konec_smlouvy"] = tarify["konec_smlouvy"].fillna("").astype(str).str[:10]
+    tarify["konec_popis"] = tarify["konec_popis"].fillna("").astype(str)
     tarify["vs"] = tarify["vs"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
     odecty = odecty.copy()
     odecty["id"] = odecty["id"].astype(str)
@@ -493,6 +498,139 @@ def srovnani_pocasi(an, teploty, konec):
 
 
 # ─────────────────────────────────────────────
+# ROČNÍ PŘEHLED – PDF
+# ─────────────────────────────────────────────
+def rocni_pdf(rok, odecty, tarif_podle, vysledky):
+    import io
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from fpdf import FPDF
+
+    font = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans.ttf")
+    font_b = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans-Bold.ttf")
+    class Prehled(FPDF):
+        def footer(self):
+            self.set_y(-11)
+            self.set_font("DV", "", 8)
+            self.set_text_color(148, 163, 184)
+            self.cell(0, 5, f"Energie doma · přehled roku {rok}", align="L")
+            self.set_x(-40)
+            self.cell(26, 5, f"Strana {self.page_no()} / {{nb}}", align="R")
+
+    pdf = Prehled(format="A4")
+    pdf.set_auto_page_break(True, margin=16)
+
+    def drz_pohromade(vyska_mm):
+        """Když se blok nevejde na zbytek stránky, začni novou – sekce se nerozdělí."""
+        if pdf.get_y() + vyska_mm > pdf.h - 16:
+            pdf.add_page()
+            pdf.set_y(16)
+    pdf.add_font("DV", "", font)
+    pdf.add_font("DV", "B", font_b)
+    pdf.add_page()
+    zelena = (16, 185, 129)
+
+    pdf.set_fill_color(17, 24, 39)
+    pdf.rect(0, 0, 210, 34, "F")
+    pdf.set_text_color(248, 250, 252)
+    pdf.set_font("DV", "B", 20)
+    pdf.set_xy(14, 10)
+    pdf.cell(0, 9, f"Energie doma – přehled roku {rok}")
+    pdf.set_font("DV", "", 9.5)
+    pdf.set_xy(14, 21)
+    pdf.cell(0, 6, f"V Průhonech 384, Nasavrky · vytvořeno {datum_cz(date.today())}")
+    pdf.set_text_color(30, 41, 59)
+    pdf.set_y(42)
+
+    nazvy_m = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"]
+    souhrn = []
+    for e in PORADI:
+        info = ENERGIE[e]
+        t = tarif_podle.get(e)
+        v = vysledky.get(e)
+        rada = denni_rada(odecty, e)
+        if t is None or not v or rada.empty:
+            continue
+        r = rada[[d.year == rok for d in rada.index]]
+        if r.empty:
+            continue
+        p = rada[[d.year == rok - 1 for d in rada.index]]
+        spotreba = r.sum()
+        dni = len(r)
+        prumer = r.mean()
+        zmena = (prumer / p.mean() - 1) * 100 if not p.empty and p.mean() > 0 else None
+        naklad = spotreba * v["cena_jednotky"] + dni / 365 * 12 * float(t["mesicni_platy"])
+        souhrn.append((e, spotreba, dni, prumer, zmena, naklad))
+
+        drz_pohromade(8 + 4 * 6 + 186 * 2.1 / 7.2 + 6)
+        pdf.set_font("DV", "B", 13)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(0, 8, info["nazev"], new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DV", "", 10)
+        radky = [
+            ("Spotřeba", f"{cislo(spotreba, 0)} {info['jednotka']}" + ("" if dni >= 360 else f"  (data za {dni} dní)")),
+            ("Průměr na den", f"{cislo(prumer, 2)} {info['jednotka']}"),
+            ("Změna proti roku " + str(rok - 1), f"{zmena:+.0f} %" if zmena is not None else "–"),
+            ("Náklad (dnešní ceny vč. stálých plateb)", kc(naklad)),
+        ]
+        for a, b in radky:
+            pdf.cell(95, 6, a)
+            pdf.cell(0, 6, b, new_x="LMARGIN", new_y="NEXT")
+
+        df = r.rename("h").to_frame()
+        df["m"] = [d.month for d in df.index]
+        mes = df.groupby("m")["h"].sum()
+        dfp = p.rename("h").to_frame()
+        if not dfp.empty:
+            dfp["m"] = [d.month for d in dfp.index]
+            mesp = dfp.groupby("m")["h"].sum()
+        else:
+            mesp = pd.Series(dtype=float)
+        fig, ax = plt.subplots(figsize=(7.2, 2.1), dpi=150)
+        x = list(range(1, 13))
+        ax.bar([i + 0.2 for i in x], [mes.get(i, 0) for i in x], width=0.4, color=info["barva"], label=str(rok))
+        if not mesp.empty:
+            ax.bar([i - 0.2 for i in x], [mesp.get(i, 0) for i in x], width=0.4, color="#94a3b8", label=str(rok - 1))
+        ax.set_xticks(x)
+        ax.set_xticklabels(nazvy_m, fontsize=8)
+        ax.tick_params(axis="y", labelsize=8)
+        ax.set_ylabel(info["jednotka"], fontsize=8)
+        for sp in ["top", "right"]:
+            ax.spines[sp].set_visible(False)
+        ax.grid(axis="y", alpha=.25)
+        ax.legend(fontsize=7, frameon=False, loc="lower right", bbox_to_anchor=(1, 1), ncol=2)
+        fig.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        pdf.image(buf, x=12, w=186)
+        pdf.ln(3)
+
+    if souhrn:
+        drz_pohromade(48)
+        pdf.set_draw_color(*zelena)
+        pdf.set_line_width(0.6)
+        pdf.line(14, pdf.get_y(), 196, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font("DV", "B", 12)
+        pdf.cell(0, 8, "Celkem", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DV", "", 10)
+        pdf.cell(95, 6, "Náklady za energie a vodu (dnešní ceny)")
+        pdf.cell(0, 6, kc(sum(x[5] for x in souhrn)), new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(95, 6, "Měsíčně v průměru")
+        pdf.cell(0, 6, kc(sum(x[5] for x in souhrn) / 12), new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+        pdf.set_font("DV", "", 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.multi_cell(0, 4.5, "Spotřeba mezi odečty je rozpočítaná podle typického průběhu roku. Náklady jsou "
+                               "přepočtené aktuálními cenami s DPH, aby šly roky srovnávat – skutečně zaplacené "
+                               f"částky se mohou lišit. Autor: {AUTOR}, {EMAIL}")
+    return bytes(pdf.output())
+
+
+# ─────────────────────────────────────────────
 # VZHLED
 # ─────────────────────────────────────────────
 st.markdown(f"""
@@ -548,6 +686,11 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .radky-mini {{ display: grid; grid-template-columns: 1fr; gap: 2px; font-size: .88rem; color: #e2e8f0; padding-top: 18px; }}
 .radky-mini b {{ font-weight: 700; font-size: 1.05rem; margin-bottom: 8px; font-variant-numeric: tabular-nums; }}
 .mini-pozn {{ font-size: .76rem; color: {BARVA_TEXT_TLUMENY}; line-height: 1.5; }}
+.smlouva {{ border: 1px solid var(--acc); border-left: 5px solid var(--acc); border-radius: 14px;
+  background: rgba(30,41,59,.6); padding: 10px 14px; margin: 0 0 12px; font-size: .88rem; color: #e2e8f0; line-height: 1.5; }}
+.cena-radek {{ display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px;
+  border-bottom: 1px solid rgba(148,163,184,.12); font-size: .92rem; }}
+.cena-radek b {{ font-variant-numeric: tabular-nums; white-space: nowrap; }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -747,6 +890,24 @@ with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování")
 
 if "ulozeno" in st.session_state:
     st.success(st.session_state.pop("ulozeno"))
+
+for e in PORADI:
+    t = tarif_podle.get(e)
+    if t is None or not t["konec_smlouvy"]:
+        continue
+    konec_d = pd.to_datetime(t["konec_smlouvy"]).date()
+    zbyva_dni = (konec_d - dnes).days
+    if zbyva_dni <= 90:
+        if zbyva_dni >= 0:
+            kdy = f"za **{zbyva_dni} dní** ({datum_cz(konec_d)})"
+        else:
+            kdy = f"**{datum_cz(konec_d)}** (před {-zbyva_dni} dny)"
+        st.markdown(f"""
+<div class="smlouva" style="--acc:{ENERGIE[e]['barva']}">
+  <div><b>{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}: {t['konec_popis'] or 'konec smlouvy'} {kdy.replace('**', '')}</b></div>
+  <div>{t['dodavatel']} · Mrkni na nabídky a porovnej je v kalkulačce dole ve Správě –
+  při automatickém prodloužení zůstaneš na ceníku, který nemusí být výhodný.</div>
+</div>""", unsafe_allow_html=True)
 
 PRAHY_ANOMALIE = {"voda": 1.2, "elektrina": 1.25, "plyn": 1.3}
 for e in PORADI:
@@ -1026,6 +1187,66 @@ for e, tab in zip(PORADI, zalozky):
 # HISTORIE ODEČTŮ – úprava a mazání s potvrzením
 # ─────────────────────────────────────────────
 st.markdown('<div class="sekce">Správa</div>', unsafe_allow_html=True)
+with st.expander("🔌 Co kolik stojí"):
+    t_el, t_pl, t_vo = tarif_podle.get("elektrina"), tarif_podle.get("plyn"), tarif_podle.get("voda")
+    c_kwh = float(t_el["cena_za_kwh"]) if t_el is not None else 0
+    c_plyn = float(t_pl["cena_za_kwh"]) if t_pl is not None else 0
+    c_voda = float(t_vo["cena_za_kwh"]) if t_vo is not None else 0
+    st.caption(f"Podle tvých cen s DPH: elektřina {cislo(c_kwh, 2)} Kč/kWh, plyn {cislo(c_plyn, 2)} Kč/kWh, "
+               f"voda {cislo(c_voda / 1000, 3)} Kč/litr. Jen proměnná část – stálé platby zaplatíš tak jako tak.")
+
+    def ohrev_plynem(litry, delta=30, ucinnost=0.9):
+        return litry * 4.186 * delta / 3600 / ucinnost  # kWh plynu
+
+    polozky = [
+        ("🛁", "Vana teplé vody (150 l)", ohrev_plynem(150) * c_plyn + 0.150 * c_voda),
+        ("🚿", "Sprcha 5 min (50 l)", ohrev_plynem(50) * c_plyn + 0.050 * c_voda),
+        ("👕", "Praní 40 °C", 0.8 * c_kwh + 0.050 * c_voda),
+        ("🌀", "Sušička – jedna dávka", 2.5 * c_kwh),
+        ("🍽️", "Myčka – jeden cyklus", 1.0 * c_kwh + 0.012 * c_voda),
+        ("🍕", "Trouba 1 hodina", 1.2 * c_kwh),
+        ("☕", "Varná konvice 1 l", 0.11 * c_kwh),
+        ("🔥", "Přímotop 2 kW – 1 hodina", 2.0 * c_kwh),
+        ("💻", "Pracovní den u PC (notebook + monitor, 8 h)", 0.6 * c_kwh),
+        ("📺", "Televize večer (3 h)", 0.3 * c_kwh),
+        ("🧊", "Lednička – den", 0.7 * c_kwh),
+        ("🚽", "Spláchnutí (6 l)", 0.006 * c_voda),
+        ("📱", "Nabití telefonu", 0.015 * c_kwh),
+    ]
+    st.markdown("".join(
+        f'<div class="cena-radek"><span>{ik} {n}</span><b>{cislo(k, 2) if k < 10 else cislo(k, 0)} Kč</b></div>'
+        for ik, n, k in polozky), unsafe_allow_html=True)
+    st.caption("Orientační hodnoty pro běžné spotřebiče; teplá voda ohřátá plynovým kotlem o 30 °C.")
+
+    st.markdown("**Vlastní spotřebič**")
+    c1, c2, c3 = st.columns(3)
+    prikon = c1.number_input("Příkon (W)", min_value=0.0, value=None, step=10.0, placeholder="např. 2000", key="vl_w")
+    hodin = c2.number_input("Hodin denně", min_value=0.0, value=None, step=0.5, placeholder="např. 1", key="vl_h")
+    dni_t = c3.number_input("Dní v týdnu", min_value=0, max_value=7, value=7, step=1, key="vl_d")
+    if prikon and hodin:
+        kwh_den = prikon / 1000 * hodin
+        rok = kwh_den * dni_t * 52.18
+        st.markdown(f"Jeden den **{kc(kwh_den * c_kwh)}** · měsíčně **{kc(rok / 12 * c_kwh)}** · "
+                    f"ročně **{kc(rok * c_kwh)}** ({cislo(rok, 0)} kWh)")
+
+with st.expander("📄 Roční přehled do PDF"):
+    roky_vse = set()
+    for e in PORADI:
+        r_ = denni_rada(odecty, e)
+        roky_vse |= {d.year for d in r_.index}
+    roky_vse = sorted(roky_vse, reverse=True)
+    if not roky_vse:
+        st.caption("Zatím málo dat.")
+    else:
+        rok_pdf = st.selectbox("Rok", roky_vse, key="rok_pdf")
+        if st.button("Připravit PDF", key="pdf_btn", width="stretch"):
+            with st.spinner("Chystám PDF…"):
+                st.session_state["pdf_data"] = (rok_pdf, rocni_pdf(rok_pdf, odecty, tarif_podle, vysledky))
+        pdf = st.session_state.get("pdf_data")
+        if pdf and pdf[0] == rok_pdf:
+            st.download_button("⬇️ Stáhnout PDF", data=pdf[1], file_name=f"energie_prehled_{rok_pdf}.pdf",
+                               mime="application/pdf", type="primary", width="stretch")
+
 with st.expander("💡 Porovnat nabídku jiného dodavatele"):
     st.caption("Dodavatel ovlivní jen obchodní část ceny (cena za kWh + stálý plat). Distribuce a poplatky "
                "státu jsou u všech stejné, proto se porovnává jen obchodní část – podle tvé skutečné roční spotřeby.")
@@ -1158,14 +1379,20 @@ with st.expander("⚙️ Ceny a zálohy"):
                                        format="%.5f", disabled=(e == "voda"))
             obch_mes = c2.number_input("Obchodní stálý plat (Kč/měs., s DPH)", value=float(t["obchodni_mesic"]),
                                        step=1.0, format="%.2f", disabled=(e == "voda"))
+            c1, c2 = st.columns([2, 3])
+            konec_val = pd.to_datetime(t["konec_smlouvy"]).date() if t["konec_smlouvy"] else None
+            konec = c1.date_input("Konec smlouvy / fixace", value=konec_val, format="DD.MM.YYYY")
+            konec_txt = c2.text_input("Popis", value=t["konec_popis"], placeholder="např. Konec fixace ceny")
             if st.form_submit_button("Uložit", width="stretch"):
                 ven = tarify.copy()
                 m = ven["energie"] == e
                 ven.loc[m, ["zaloha", "cena_za_kwh", "mesicni_platy", "kwh_na_jednotku", "obdobi_od", "obdobi_do",
                             "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati",
-                            "ucet", "vs", "den_splatnosti", "obchodni_kwh", "obchodni_mesic"]] = [
+                            "ucet", "vs", "den_splatnosti", "obchodni_kwh", "obchodni_mesic",
+                            "konec_smlouvy", "konec_popis"]] = [
                     zaloha, cena, mes, prepocet, od.isoformat(), do.isoformat(), stav_od,
-                    zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den, obch_kwh, obch_mes]
+                    zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den, obch_kwh, obch_mes,
+                    konec.isoformat() if konec else "", konec_txt]
                 ul.uloz("tarify", ven[SLOUPCE_TARIFY])
                 st.session_state["ulozeno"] = f"{info['nazev']}: ceny a zálohy uloženy."
                 st.rerun()
