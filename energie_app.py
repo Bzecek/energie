@@ -437,6 +437,12 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .tile .s {{ font-size: .78rem; color: {BARVA_TEXT_TLUMENY}; margin-top: 2px; }}
 .tile.hl {{ border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }}
 
+.budiky {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 6px 0 10px; }}
+.budik {{ background: rgba(30,41,59,.55); border: 1px solid rgba(148,163,184,.15); border-radius: 16px;
+  padding: 12px 14px 14px; display: flex; flex-direction: column; align-items: center; }}
+.b-titul {{ align-self: flex-start; font-size: .72rem; color: {BARVA_TEXT_TLUMENY}; text-transform: uppercase; letter-spacing: .06em; }}
+.b-svg {{ max-width: 260px; margin-top: 4px; }}
+.b-stitek {{ margin-top: 6px; padding: 3px 12px; border-radius: 999px; font-size: .78rem; font-weight: 700; border: 1px solid; }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -493,29 +499,48 @@ def stav_zalohy(v):
     return "Optimální", BARVA_OK, pomer
 
 
-def budik(hodnota, kroky, barva, text, vyska=190):
-    """Půlkruhový ukazatel (barometr)."""
-    fig = go.Figure(go.Indicator(
-        mode="gauge", value=max(0, min(hodnota, 200)),
-        gauge=dict(
-            shape="angular",
-            axis=dict(range=[0, 200], tickvals=[], showticklabels=False),
-            bar=dict(color=barva, thickness=0.28),
-            bgcolor="rgba(0,0,0,0)", borderwidth=0,
-            steps=[dict(range=r, color=c) for r, c in kroky],
-            threshold=dict(line=dict(color="#f8fafc", width=3), thickness=0.85, value=max(0, min(hodnota, 200))),
-        ),
-        domain=dict(x=[0, 1], y=[0, 1]),
-    ))
-    fig.add_annotation(x=0.5, y=0.08, text=f"<b>{text}</b>", showarrow=False,
-                       font=dict(size=17, color=barva))
-    fig.update_layout(height=vyska, margin=dict(l=18, r=18, t=8, b=0),
-                      paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"))
-    return fig
+def _bod(hodnota, r=80, cx=100, cy=100):
+    import math
+    th = math.pi * (1 - max(0, min(hodnota, 200)) / 200)
+    return cx + r * math.cos(th), cy - r * math.sin(th)
 
 
-KROKY_ZALOHA = [([0, 92], "rgba(239,68,68,.22)"), ([92, 108], "rgba(34,197,94,.25)"), ([108, 200], "rgba(56,189,248,.20)")]
-KROKY_PLAN = [([0, 95], "rgba(34,197,94,.25)"), ([95, 115], "rgba(245,158,11,.22)"), ([115, 200], "rgba(239,68,68,.22)")]
+def _oblouk(v1, v2, r=80):
+    x1, y1 = _bod(v1, r)
+    x2, y2 = _bod(v2, r)
+    return f"M {x1:.2f} {y1:.2f} A {r} {r} 0 0 1 {x2:.2f} {y2:.2f}"
+
+
+def svg_budik(hodnota, zony, barva, velky_text, maly_text, popisky):
+    """Moderní půlkruhový barometr jako SVG – tenké barevné zóny, svítící ukazatel, hodnota uprostřed."""
+    h = max(0, min(hodnota, 200))
+    casti = []
+    for (z1, z2), c in zony:
+        casti.append(f'<path d="{_oblouk(z1 + (0 if z1 == 0 else 1.2), z2 - (0 if z2 == 200 else 1.2))}" stroke="{c}" stroke-opacity=".30" '
+                     f'stroke-width="10" fill="none" stroke-linecap="butt"/>')
+    if h > 2:
+        casti.append(f'<path d="{_oblouk(1.8, h)}" stroke="{barva}" stroke-width="10" fill="none" '
+                     f'stroke-linecap="round" filter="url(#zare)"/>')
+    x, y = _bod(h)
+    casti.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="9" fill="#0b1220" stroke="{barva}" stroke-width="3.5" filter="url(#zare)"/>')
+    casti.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3.2" fill="#f8fafc"/>')
+    lx, _ = _bod(0)
+    rx, _ = _bod(200)
+    return (f'<svg viewBox="0 -4 200 126" width="100%" class="b-svg" role="img" aria-label="{velky_text}">'
+            '<defs><filter id="zare" x="-50%" y="-50%" width="200%" height="200%">'
+            '<feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/>'
+            '<feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
+            f'<path d="{_oblouk(0, 200)}" stroke="rgba(148,163,184,.10)" stroke-width="18" fill="none" stroke-linecap="round"/>'
+            + "".join(casti) +
+            f'<text x="100" y="86" text-anchor="middle" font-size="22" font-weight="700" fill="#f8fafc" font-family="Inter, sans-serif">{velky_text}</text>'
+            f'<text x="100" y="103" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="Inter, sans-serif">{maly_text}</text>'
+            f'<text x="{lx:.0f}" y="119" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">{popisky[0]}</text>'
+            f'<text x="{rx:.0f}" y="119" text-anchor="middle" font-size="10" fill="#64748b" font-family="Inter, sans-serif">{popisky[1]}</text>'
+            '</svg>')
+
+
+ZONY_ZALOHA = [([0, 92], BARVA_ZLE), ([92, 108], BARVA_OK), ([108, 200], BARVA_MOC)]
+ZONY_PLAN = [([0, 95], BARVA_OK), ([95, 115], BARVA_VAROVANI), ([115, 200], BARVA_ZLE)]
 
 # ─────────────────────────────────────────────
 # HERO – celkový přehled
@@ -624,23 +649,27 @@ for e, tab in zip(PORADI, zalozky):
             continue
 
         # Barometry
-        g1, g2 = st.columns(2)
         txt, barva, pomer = stav_zalohy(v)
-        with g1:
-            st.markdown('<div class="gauge-title">Nastavení zálohy</div>', unsafe_allow_html=True)
-            st.plotly_chart(budik(pomer, KROKY_ZALOHA, barva, txt), width="stretch",
-                            config={"displayModeBar": False, "staticPlot": True}, key=f"g1_{e}")
         pomer_plan = v["pouzito"] / v["plan"] * 100 if v["plan"] > 0 else 100
         if pomer_plan < 95:
             t2, b2 = "Pod plánem", BARVA_OK
         elif pomer_plan <= 115:
-            t2, b2 = f"Na plánu {pomer_plan - 100:+.0f} %", BARVA_VAROVANI if pomer_plan > 105 else BARVA_OK
+            t2, b2 = "Na plánu", BARVA_VAROVANI if pomer_plan > 105 else BARVA_OK
         else:
-            t2, b2 = f"Nad plánem {pomer_plan - 100:+.0f} %", BARVA_ZLE
-        with g2:
-            st.markdown('<div class="gauge-title">Spotřeba vs plán</div>', unsafe_allow_html=True)
-            st.plotly_chart(budik(pomer_plan, KROKY_PLAN, b2, t2), width="stretch",
-                            config={"displayModeBar": False, "staticPlot": True}, key=f"g2_{e}")
+            t2, b2 = "Nad plánem", BARVA_ZLE
+        dop_txt = kc(v["doporucena"]) if v["doporucena"] is not None else "–"
+        g_zal = svg_budik(pomer, ZONY_ZALOHA, barva, kc(v["zaloha"]), f"potřeba {dop_txt}", ("Málo", "Moc"))
+        odch = round(pomer_plan - 100)
+        g_plan = svg_budik(pomer_plan, ZONY_PLAN, b2, f"{odch:+d} %" if odch else "0 %",
+                           f"{cislo(v['pouzito'], 1)} / {cislo(v['plan'], 1)} {info['jednotka']}", ("Pod", "Nad"))
+        st.markdown(f"""
+<div class="budiky">
+  <div class="budik"><div class="b-titul">Nastavení zálohy</div>{g_zal}
+    <div class="b-stitek" style="color:{barva};background:{barva}1f;border-color:{barva}55">{txt}</div></div>
+  <div class="budik"><div class="b-titul">Spotřeba vs plán</div>{g_plan}
+    <div class="b-stitek" style="color:{b2};background:{b2}1f;border-color:{b2}55">{t2}</div></div>
+</div>
+""", unsafe_allow_html=True)
 
         # Vyúčtování k poslednímu odečtu
         nd, zd, bd = v["naklad_dosud"], v["zaplaceno_dosud"], v["bilance_dosud"]
