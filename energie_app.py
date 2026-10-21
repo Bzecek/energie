@@ -39,13 +39,14 @@ PROFIL = {
     "voda": [8.33, 8.33, 8.33, 8.33, 8.34, 8.33, 8.33, 8.34, 8.33, 8.33, 8.33, 8.34],
 }
 
-SLOUPCE_ODECTY = ["id", "datum", "energie", "stav", "typ", "poznamka", "meridlo"]
-SLOUPCE_ODECTY_ZAKLAD = SLOUPCE_ODECTY[:-1]
+# U dvoutarifního elektroměru je „stav“ součet VT + NT a „stav_nt“ samotný nízký tarif
+SLOUPCE_ODECTY = ["id", "datum", "energie", "stav", "typ", "poznamka", "meridlo", "stav_nt"]
+SLOUPCE_ODECTY_ZAKLAD = SLOUPCE_ODECTY[:6]
 SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
     "zaplaceno", "zaplaceno_k_datu", "den_splatnosti", "rezerva_pct", "cena_plati",
-    "ucet", "vs", "obchodni_kwh", "obchodni_mesic", "konec_smlouvy", "konec_popis",
+    "ucet", "vs", "obchodni_kwh", "obchodni_mesic", "konec_smlouvy", "konec_popis", "cena_nt_kwh",
 ]
 SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:14]  # starší tabulky bez novějších sloupců
 
@@ -96,22 +97,57 @@ VYCHOZI_TARIFY = [
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)",
      "ucet": "19-17608231/0100", "vs": "6401196187",
      "obchodni_kwh": 3.53925, "obchodni_mesic": 143.99,
-     "konec_smlouvy": "2026-12-03", "konec_popis": "Smlouva (bez fixace) končí"},
+     "konec_smlouvy": "2026-12-03", "konec_popis": "Smlouva (bez fixace) končí", "cena_nt_kwh": 0},
     {"energie": "plyn", "dodavatel": "E.ON", "cena_za_kwh": 1.48004, "kwh_na_jednotku": 10.92,
      "mesicni_platy": 384.36, "zaloha": 1310, "obdobi_od": "2026-10-08", "stav_obdobi_od": 6391,
      "obdobi_do": "2027-10-08", "zaplaceno": 1000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027",
      "ucet": "19-17608231/0100", "vs": "6401196186",
      "obchodni_kwh": 1.0285, "obchodni_mesic": 156.09,
-     "konec_smlouvy": "2027-12-31", "konec_popis": "Fixace ceny končí"},
+     "konec_smlouvy": "2027-12-31", "konec_popis": "Fixace ceny končí", "cena_nt_kwh": 0},
     {"energie": "voda", "dodavatel": "VS Chrudim", "cena_za_kwh": 143.04, "kwh_na_jednotku": 1,
      "mesicni_platy": 81.08, "zaloha": 2000, "obdobi_od": "2026-05-15", "stav_obdobi_od": 2283,
      "obdobi_do": "2027-05-15", "zaplaceno": 10000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení",
      "ucet": "1092006008/5500", "vs": "4200385398",
      "obchodni_kwh": 0, "obchodni_mesic": 0,
-     "konec_smlouvy": "", "konec_popis": ""},
+     "konec_smlouvy": "", "konec_popis": "", "cena_nt_kwh": 0},
 ]
+
+
+# ─────────────────────────────────────────────
+# ODBĚRNÁ MÍSTA
+# ─────────────────────────────────────────────
+# Strkov 9 – elektřina PRE, dvoutarif D25d (VT/NT), elektroměr 2480513295. Výchozí data z faktury PRE 180369872.
+STRKOV_ODECTY = [  # (datum, energie, stav celkem, typ, poznámka, měřidlo, stav NT)
+    ("2025-02-01", "elektrina", 347, "odečet", "Faktura PRE · VT 148 + NT 199", "2480513295", 199),
+    ("2025-06-21", "elektrina", 1449, "odečet", "Faktura PRE · VT 390 + NT 1059", "2480513295", 1059),
+]
+STRKOV_TARIFY = [
+    {"energie": "elektrina", "dodavatel": "PRE", "cena_za_kwh": 6.65661, "kwh_na_jednotku": 1,
+     "mesicni_platy": 443.88, "zaloha": 1730, "obdobi_od": "2026-06-22", "stav_obdobi_od": 0,
+     "obdobi_do": "2027-06-21", "zaplaceno": 0, "zaplaceno_k_datu": "2026-06-22",
+     "den_splatnosti": 11, "rezerva_pct": 0, "cena_plati": "Ceník PRE 2025 – aktualizuj (změna 30. 9. 2026)",
+     "ucet": "19-2784000277/0100", "vs": "21867837",
+     "obchodni_kwh": 2.88457, "obchodni_mesic": 143.99,
+     "konec_smlouvy": "2026-09-30", "konec_popis": "Změna ceny / produktu PRE", "cena_nt_kwh": 3.92067},
+    {"energie": "voda", "dodavatel": "doplň", "cena_za_kwh": 0, "kwh_na_jednotku": 1,
+     "mesicni_platy": 0, "zaloha": 0, "obdobi_od": "2026-01-01", "stav_obdobi_od": 0,
+     "obdobi_do": "2026-12-31", "zaplaceno": 0, "zaplaceno_k_datu": "2026-01-01",
+     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Doplň z faktury za vodu",
+     "ucet": "", "vs": "", "obchodni_kwh": 0, "obchodni_mesic": 0,
+     "konec_smlouvy": "", "konec_popis": "", "cena_nt_kwh": 0},
+]
+
+MISTA = {
+    "pruhony": {"nazev": "V Průhonech 384", "obec": "Nasavrky", "ikona": "🏠", "popis": "Doma",
+                "energie": ["plyn", "elektrina", "voda"], "list_odecty": "odecty", "list_tarify": "tarify",
+                "tarify": VYCHOZI_TARIFY},
+    "strkov": {"nazev": "Strkov 9", "obec": "Ctětín", "ikona": "🏡", "popis": "Mamka · Pavlína Dvořáčková",
+               "energie": ["elektrina", "voda"], "list_odecty": "odecty_strkov", "list_tarify": "tarify_strkov",
+               "tarify": STRKOV_TARIFY, "odecty": STRKOV_ODECTY},
+}
+DUVOD = {}  # proč u energie nejde nic spočítat (zobrazí se v záložce)
 
 
 # ─────────────────────────────────────────────
@@ -160,54 +196,88 @@ def nove_id():
     return datetime.now().strftime("%Y%m%d%H%M%S%f")
 
 
-def nacti_data(ul):
-    odecty = ul.nacti("odecty", SLOUPCE_ODECTY_ZAKLAD)
-    if odecty is None:
-        zaklad = [(d, e, s, t, p, meridlo_pro(e, d)) for d, e, s, t, p in VYCHOZI_ODECTY]
+def nacti_data(ul, misto):
+    m = MISTA[misto]
+    l_od, l_ta = m["list_odecty"], m["list_tarify"]
+    odecty = ul.nacti(l_od, SLOUPCE_ODECTY_ZAKLAD)
+    if misto == "pruhony":
+        if odecty is None:
+            zaklad = [(d, e, s, t, p, meridlo_pro(e, d)) for d, e, s, t, p in VYCHOZI_ODECTY]
+            odecty = pd.DataFrame(
+                [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": mr}
+                 for i, (d, e, s, t, p, mr) in enumerate(zaklad + HISTORIE_ODECTY)],
+                columns=SLOUPCE_ODECTY,
+            )
+            ul.uloz(l_od, odecty)
+        elif "meridlo" not in odecty.columns:
+            # jednorázová migrace: doplnit číslo měřidla a starší odečty z faktur, tvoje záznamy zůstávají
+            odecty = odecty.copy()
+            odecty["meridlo"] = [meridlo_pro(e, str(d)[:10]) for e, d in zip(odecty["energie"], odecty["datum"])]
+            mam = {(str(d)[:10], e, round(float(st_), 3)) for d, e, st_ in zip(odecty["datum"], odecty["energie"], odecty["stav"])}
+            nove = [{"id": f"hist{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": mr}
+                    for i, (d, e, s, t, p, mr) in enumerate(HISTORIE_ODECTY) if (d, e, round(float(s), 3)) not in mam]
+            odecty = pd.concat([odecty, pd.DataFrame(nove, columns=SLOUPCE_ODECTY)], ignore_index=True)
+            odecty["datum"] = odecty["datum"].astype(str).str[:10]
+            for c in SLOUPCE_ODECTY:
+                if c not in odecty.columns:
+                    odecty[c] = None
+            ul.uloz(l_od, odecty[SLOUPCE_ODECTY])
+    elif odecty is None:
         odecty = pd.DataFrame(
-            [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": m}
-             for i, (d, e, s, t, p, m) in enumerate(zaklad + HISTORIE_ODECTY)],
+            [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p,
+              "meridlo": mr, "stav_nt": nt}
+             for i, (d, e, s, t, p, mr, nt) in enumerate(m.get("odecty", []))],
             columns=SLOUPCE_ODECTY,
         )
-        ul.uloz("odecty", odecty)
-    elif "meridlo" not in odecty.columns:
-        # jednorázová migrace: doplnit číslo měřidla a starší odečty z faktur, tvoje záznamy zůstávají
-        odecty = odecty.copy()
-        odecty["meridlo"] = [meridlo_pro(e, str(d)[:10]) for e, d in zip(odecty["energie"], odecty["datum"])]
-        mam = {(str(d)[:10], e, round(float(st_), 3)) for d, e, st_ in zip(odecty["datum"], odecty["energie"], odecty["stav"])}
-        nove = [{"id": f"hist{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p, "meridlo": m}
-                for i, (d, e, s, t, p, m) in enumerate(HISTORIE_ODECTY) if (d, e, round(float(s), 3)) not in mam]
-        odecty = pd.concat([odecty, pd.DataFrame(nove, columns=SLOUPCE_ODECTY)], ignore_index=True)
-        odecty["datum"] = odecty["datum"].astype(str).str[:10]
-        ul.uloz("odecty", odecty[SLOUPCE_ODECTY])
+        ul.uloz(l_od, odecty)
+    for c in SLOUPCE_ODECTY:
+        if c not in odecty.columns:
+            odecty[c] = None
     odecty = odecty[SLOUPCE_ODECTY]
-    tarify = ul.nacti("tarify", SLOUPCE_TARIFY_ZAKLAD)
+
+    vych_seznam = m["tarify"]
+    tarify = ul.nacti(l_ta, SLOUPCE_TARIFY_ZAKLAD)
     if tarify is None:
-        tarify = pd.DataFrame(VYCHOZI_TARIFY, columns=SLOUPCE_TARIFY)
-        ul.uloz("tarify", tarify)
+        tarify = pd.DataFrame(vych_seznam, columns=SLOUPCE_TARIFY)
+        ul.uloz(l_ta, tarify)
     else:
-        # doplnění sloupců z novější verze appky (platební údaje) bez přepsání tvých úprav
+        # doplnění sloupců z novější verze appky bez přepsání tvých úprav
         chybi = [c for c in SLOUPCE_TARIFY if c not in tarify.columns]
         if chybi:
-            vych = {d["energie"]: d for d in VYCHOZI_TARIFY}
+            vych = {d["energie"]: d for d in vych_seznam}
             for c in chybi:
                 tarify[c] = tarify["energie"].map(lambda e: vych.get(e, {}).get(c, ""))
-            ul.uloz("tarify", tarify[SLOUPCE_TARIFY])
+            ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
         tarify = tarify[SLOUPCE_TARIFY].copy()
-    tarify["ucet"] = tarify["ucet"].fillna("").astype(str)
+    for c in ["ucet", "konec_popis", "dodavatel", "cena_plati"]:
+        tarify[c] = tarify[c].fillna("").astype(str)
     tarify["konec_smlouvy"] = tarify["konec_smlouvy"].fillna("").astype(str).str[:10]
-    tarify["konec_popis"] = tarify["konec_popis"].fillna("").astype(str)
     tarify["vs"] = tarify["vs"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
+    for c in ["cena_za_kwh", "kwh_na_jednotku", "mesicni_platy", "zaloha", "stav_obdobi_od", "zaplaceno",
+              "den_splatnosti", "rezerva_pct", "obchodni_kwh", "obchodni_mesic", "cena_nt_kwh"]:
+        tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
+    tarify["den_splatnosti"] = tarify["den_splatnosti"].replace(0, 15)
+
     odecty = odecty.copy()
     odecty["id"] = odecty["id"].astype(str)
     odecty["datum"] = pd.to_datetime(odecty["datum"]).dt.date
     odecty["stav"] = pd.to_numeric(odecty["stav"], errors="coerce")
+    odecty["stav_nt"] = pd.to_numeric(odecty["stav_nt"], errors="coerce")
     odecty["poznamka"] = odecty["poznamka"].fillna("").astype(str)
     odecty["typ"] = odecty["typ"].fillna("vlastní").astype(str)
     odecty["meridlo"] = odecty["meridlo"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
     prazdne = odecty["meridlo"] == ""
-    odecty.loc[prazdne, "meridlo"] = [meridlo_pro(e, str(d)) for e, d in zip(odecty.loc[prazdne, "energie"], odecty.loc[prazdne, "datum"])]
+    if misto == "pruhony":
+        odecty.loc[prazdne, "meridlo"] = [meridlo_pro(e, str(d)) for e, d in
+                                          zip(odecty.loc[prazdne, "energie"], odecty.loc[prazdne, "datum"])]
     return odecty, tarify
+
+
+def posledni_meridlo(odecty, energie):
+    rs = odecty[(odecty["energie"] == energie) & (odecty["meridlo"] != "")].sort_values("datum")
+    if not rs.empty:
+        return rs.iloc[-1]["meridlo"]
+    return MERIDLO_AKTUALNI.get(energie, "") if MISTO_KLIC == "pruhony" else ""
 
 
 # ─────────────────────────────────────────────
@@ -307,18 +377,58 @@ def anomalie(odecty, energie):
 
 
 def spocitej(energie, odecty, t, dnes):
+    DUVOD.pop(energie, None)
     rs = platne_odecty(odecty, energie)
     if rs.empty:
+        DUVOD[energie] = "Zatím tu není žádný stav měřidla – zadej první níže."
         return None
     rs = rs[rs["meridlo"] == rs.iloc[-1]["meridlo"]].reset_index(drop=True)
+    if len(rs) < 2:
+        DUVOD[energie] = "Pro výpočet potřebuju aspoň dva stavy měřidla – zadej další, třeba za týden."
+        return None
     posl = rs.iloc[-1]
     od = pd.to_datetime(t["obdobi_od"]).date()
     do = pd.to_datetime(t["obdobi_do"]).date()
+    if posl["datum"] <= od:
+        DUVOD[energie] = (f"Poslední stav je z {datum_cz(posl['datum'])}, ale zúčtovací období začalo "
+                          f"{datum_cz(od)}. Zadej aktuální stav měřidla – stav na začátku období dopočítám.")
+        return None
     A = rocni_odhad(rs, energie)
-    pouzito = posl["stav"] - float(t["stav_obdobi_od"])
+
+    # stav na začátku období – ze zadání, jinak dopočet z odečtů okolo
+    stav_od = float(t["stav_obdobi_od"] or 0)
+    stav_od_odhad = False
+    if not stav_od > 0:
+        pred, po = rs[rs["datum"] <= od], rs[rs["datum"] >= od]
+        b_ = po.iloc[0]
+        if not pred.empty:
+            a_ = pred.iloc[-1]
+            p_all = podil(energie, a_["datum"], b_["datum"])
+            pom = podil(energie, a_["datum"], od) / p_all if p_all > 0 else 0
+            stav_od = a_["stav"] + (b_["stav"] - a_["stav"]) * pom
+        else:
+            stav_od = b_["stav"] - A * podil(energie, od, b_["datum"])
+        stav_od_odhad = True
+
+    kwh, mes = float(t["kwh_na_jednotku"]), float(t["mesicni_platy"])
+    cena = float(t["cena_za_kwh"])
+    cena_nt = float(t.get("cena_nt_kwh", 0) or 0)
+    podil_nt = None
+    if cena_nt > 0:
+        podil_nt = 0.7
+        nt = rs[rs["stav_nt"].notna()]
+        if len(nt) >= 2:
+            r1 = nt.iloc[-1]
+            okno = nt[nt["datum"] >= r1["datum"] - timedelta(days=400)]
+            r0 = okno.iloc[0] if len(okno) >= 2 else nt.iloc[0]
+            celk = r1["stav"] - r0["stav"]
+            if r0["datum"] < r1["datum"] and celk > 0:
+                podil_nt = min(1.0, max(0.0, (r1["stav_nt"] - r0["stav_nt"]) / celk))
+        cena = (1 - podil_nt) * cena + podil_nt * cena_nt
+
+    pouzito = posl["stav"] - stav_od
     plan = A * podil(energie, od, posl["datum"])
     projekce = pouzito + A * podil(energie, posl["datum"], do)
-    kwh, cena, mes = float(t["kwh_na_jednotku"]), float(t["cena_za_kwh"]), float(t["mesicni_platy"])
     rez = 1 + float(t["rezerva_pct"]) / 100
     mesicu = (do - od).days / (365 / 12)
     naklad = (projekce * kwh * cena + mesicu * mes) * rez
@@ -333,11 +443,10 @@ def spocitej(energie, odecty, t, dnes):
     zaplaceno_dosud, _ = platby(t, posl["datum"])
     # tempo mezi posledními dvěma odečty
     tempo = None
-    if len(rs) >= 2:
-        pred = rs.iloc[-2]
-        dni = (posl["datum"] - pred["datum"]).days
-        if dni > 0:
-            tempo = (posl["stav"] - pred["stav"]) / dni
+    pred = rs.iloc[-2]
+    dni = (posl["datum"] - pred["datum"]).days
+    if dni > 0:
+        tempo = (posl["stav"] - pred["stav"]) / dni
     return {
         "rocni": A, "pouzito": pouzito, "plan": plan, "projekce": projekce,
         "naklad": naklad, "zalohy": zalohy, "bilance": zalohy - naklad,
@@ -345,7 +454,8 @@ def spocitej(energie, odecty, t, dnes):
         "doporucena": doporucena, "mesicne": (A * kwh * cena + 12 * mes) * rez / 12,
         "posledni_datum": posl["datum"], "posledni_stav": posl["stav"],
         "obdobi_od": od, "obdobi_do": do, "tempo": tempo,
-        "cena_jednotky": kwh * cena, "rs": rs, "stav_od": float(t["stav_obdobi_od"]),
+        "cena_jednotky": kwh * cena, "rs": rs, "stav_od": stav_od, "stav_od_odhad": stav_od_odhad,
+        "podil_nt": podil_nt,
         "naklad_dosud": naklad_dosud, "zaplaceno_dosud": zaplaceno_dosud,
         "bilance_dosud": zaplaceno_dosud - naklad_dosud,
     }
@@ -500,7 +610,7 @@ def srovnani_pocasi(an, teploty, konec):
 # ─────────────────────────────────────────────
 # ROČNÍ PŘEHLED – PDF
 # ─────────────────────────────────────────────
-def rocni_pdf(rok, odecty, tarif_podle, vysledky):
+def rocni_pdf(rok, odecty, tarif_podle, vysledky, misto):
     import io
     import matplotlib
     matplotlib.use("Agg")
@@ -514,7 +624,7 @@ def rocni_pdf(rok, odecty, tarif_podle, vysledky):
             self.set_y(-11)
             self.set_font("DV", "", 8)
             self.set_text_color(148, 163, 184)
-            self.cell(0, 5, f"Energie doma · přehled roku {rok}", align="L")
+            self.cell(0, 5, f"Energie · {MISTA[misto]['nazev']} · přehled roku {rok}", align="L")
             self.set_x(-40)
             self.cell(26, 5, f"Strana {self.page_no()} / {{nb}}", align="R")
 
@@ -536,10 +646,10 @@ def rocni_pdf(rok, odecty, tarif_podle, vysledky):
     pdf.set_text_color(248, 250, 252)
     pdf.set_font("DV", "B", 20)
     pdf.set_xy(14, 10)
-    pdf.cell(0, 9, f"Energie doma – přehled roku {rok}")
+    pdf.cell(0, 9, f"{MISTA[misto]['nazev']} – přehled roku {rok}")
     pdf.set_font("DV", "", 9.5)
     pdf.set_xy(14, 21)
-    pdf.cell(0, 6, f"V Průhonech 384, Nasavrky · vytvořeno {datum_cz(date.today())}")
+    pdf.cell(0, 6, f"{MISTA[misto]['nazev']}, {MISTA[misto]['obec']} · vytvořeno {datum_cz(date.today())}")
     pdf.set_text_color(30, 41, 59)
     pdf.set_y(42)
 
@@ -691,6 +801,12 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .cena-radek {{ display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px;
   border-bottom: 1px solid rgba(148,163,184,.12); font-size: .92rem; }}
 .cena-radek b {{ font-variant-numeric: tabular-nums; white-space: nowrap; }}
+.misto-karta {{ background: rgba(30,41,59,.6); border: 1px solid rgba(148,163,184,.18); border-radius: 18px;
+  padding: 18px 16px; margin-bottom: 10px; text-align: center; }}
+.mk-ikona {{ font-size: 2.2rem; }}
+.mk-nazev {{ font-size: 1.15rem; font-weight: 700; color: #f8fafc; margin-top: 4px; }}
+.mk-obec {{ font-size: .82rem; color: {BARVA_TEXT_TLUMENY}; margin-top: 2px; }}
+.mk-energie {{ font-size: 1.2rem; margin-top: 8px; letter-spacing: 4px; }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -749,8 +865,49 @@ if _heslo and not st.session_state.get("prihlasen"):
             st.error("Špatné heslo.")
     st.stop()
 
+# ─────────────────────────────────────────────
+# VÝBĚR ODBĚRNÉHO MÍSTA
+# ─────────────────────────────────────────────
+if "misto" not in st.session_state and st.query_params.get("misto") in MISTA:
+    st.session_state["misto"] = st.query_params.get("misto")
+if "misto" not in st.session_state:
+    st.markdown("""
+<div class="hero"><h1>⚡ Energie</h1>
+<div class="sub">Vyber odběrné místo</div></div>""", unsafe_allow_html=True)
+    sloupce = st.columns(len(MISTA))
+    for sl, (klic, mm) in zip(sloupce, MISTA.items()):
+        with sl:
+            ikony = " ".join(ENERGIE[x]["ikona"] for x in mm["energie"])
+            st.markdown(f"""
+<div class="misto-karta">
+  <div class="mk-ikona">{mm['ikona']}</div>
+  <div class="mk-nazev">{mm['nazev']}</div>
+  <div class="mk-obec">{mm['obec']} · {mm['popis']}</div>
+  <div class="mk-energie">{ikony}</div>
+</div>""", unsafe_allow_html=True)
+            if st.button("Otevřít", key=f"vyber_{klic}", type="primary", width="stretch"):
+                st.session_state["misto"] = klic
+                st.query_params["misto"] = klic
+                st.rerun()
+    st.stop()
+
+MISTO_KLIC = st.session_state["misto"]
+MISTO = MISTA[MISTO_KLIC]
+PORADI = MISTO["energie"]
+L_ODECTY, L_TARIFY = MISTO["list_odecty"], MISTO["list_tarify"]
+
+volba_mista = st.segmented_control(
+    "Odběrné místo", list(MISTA), default=MISTO_KLIC, key="prepinac_mista", label_visibility="collapsed",
+    format_func=lambda k: f"{MISTA[k]['ikona']} {MISTA[k]['nazev']}", width="stretch")
+if volba_mista and volba_mista != MISTO_KLIC:
+    st.session_state["misto"] = volba_mista
+    st.query_params["misto"] = volba_mista
+    for k in ["upravuji", "mazu", "pdf_data"]:
+        st.session_state.pop(k, None)
+    st.rerun()
+
 ul = Uloziste()
-odecty, tarify = nacti_data(ul)
+odecty, tarify = nacti_data(ul, MISTO_KLIC)
 dnes = date.today()
 vysledky = {}
 for e in PORADI:
@@ -818,30 +975,34 @@ ZONY_PLAN = [([0, 95], BARVA_OK), ([95, 115], BARVA_VAROVANI), ([115, 200], BARV
 # HERO – celkový přehled
 # ─────────────────────────────────────────────
 platne = [v for v in vysledky.values() if v]
-zalohy_ted = sum(v["zaloha"] for v in platne)
-zalohy_nulu = sum(v["doporucena"] if v["doporucena"] is not None else v["zaloha"] for v in platne)
+tarif_podle = {r["energie"]: r for _, r in tarify.iterrows()}
+zalohy_ted = sum(float(tarif_podle[e]["zaloha"]) for e in PORADI if e in tarif_podle)
+zalohy_nulu = sum((vysledky[e]["doporucena"] if vysledky.get(e) and vysledky[e]["doporucena"] is not None
+                   else float(tarif_podle[e]["zaloha"])) for e in PORADI if e in tarif_podle)
 bilance_celkem = sum(v["bilance"] for v in platne)
 mesicne_celkem = sum(v["mesicne"] for v in platne)
 barva_bil = BARVA_OK if bilance_celkem >= 0 else BARVA_ZLE
 
-tarif_podle = {r["energie"]: r for _, r in tarify.iterrows()}
 platby_html = []
 for e in PORADI:
     v = vysledky.get(e)
     t = tarif_podle.get(e)
-    if not v or t is None:
+    if t is None:
         continue
-    txt, barva, _ = stav_zalohy(v)
-    if txt == "Optimální":
-        stav_txt = "záloha sedí"
-    elif txt == "Málo":
-        stav_txt = f"zvednout na {kc(v['doporucena'])}"
+    if not v:
+        txt, barva, stav_txt = "", BARVA_PLAN, "doplň aktuální stav"
     else:
-        stav_txt = f"snížit na {kc(v['doporucena'])}"
+        txt, barva, _ = stav_zalohy(v)
+        if txt == "Optimální":
+            stav_txt = "záloha sedí"
+        elif txt == "Málo":
+            stav_txt = f"zvednout na {kc(v['doporucena'])}"
+        else:
+            stav_txt = f"snížit na {kc(v['doporucena'])}"
     platby_html.append(f"""
     <div class="platba" style="--acc:{ENERGIE[e]['barva']}">
       <div class="p-hlava">{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}</div>
-      <div class="p-castka">{kc(v['zaloha'])}<span> / měs.</span></div>
+      <div class="p-castka">{kc(float(t['zaloha']))}<span> / měs.</span></div>
       <div class="p-stav"><span class="dot" style="background:{barva}"></span>{stav_txt}</div>
       <div class="p-udaje">
         <span>Účet</span><b>{t['ucet'] or '–'}</b>
@@ -852,8 +1013,8 @@ for e in PORADI:
 
 st.markdown(f"""
 <div class="hero">
-  <h1>⚡ Energie doma</h1>
-  <div class="sub">Spotřeba, zálohy a odhad vyúčtování · aktualizováno {datum_cz(max(v['posledni_datum'] for v in platne)) if platne else '–'}</div>
+  <h1>{MISTO['ikona']} {MISTO['nazev']}</h1>
+  <div class="sub">{MISTO['obec']} · {MISTO['popis']} · aktualizováno {datum_cz(max(v['posledni_datum'] for v in platne)) if platne else '–'}</div>
   <div class="hero-grid">
     <div class="hero-kpi"><div class="l">Zálohy teď</div><div class="v">{kc(zalohy_ted)}</div><div class="s">měsíčně celkem</div></div>
     <div class="hero-kpi"><div class="l">Zálohy na nulu</div><div class="v">{kc(zalohy_nulu)}</div><div class="s">rozdíl {kc_znamenko(zalohy_nulu - zalohy_ted)}</div></div>
@@ -868,10 +1029,10 @@ with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování")
     for e, tab in zip(PORADI, qr_zal):
         with tab:
             t = tarif_podle.get(e)
-            v = vysledky.get(e)
-            if t is None or not v:
+            if t is None or not t["ucet"]:
+                st.caption("Platební údaje zatím chybí – doplň je v ⚙️ Ceny a zálohy.")
                 continue
-            castka = st.number_input("Částka (Kč)", value=float(v["zaloha"]), step=10.0, format="%.0f", key=f"qr_c_{e}")
+            castka = st.number_input("Částka (Kč)", value=float(t["zaloha"]), step=10.0, format="%.0f", key=f"qr_c_{e}")
             c1, c2 = st.columns([1, 1])
             with c1:
                 png = qr_platba(t["ucet"], castka, t["vs"], f"Zaloha {ENERGIE[e]['nazev']}")
@@ -925,6 +1086,68 @@ for e in PORADI:
         st.warning(f"{inf['ikona']} **{inf['nazev']}:** od posledního odečtu {cislo(ted_d, 2)} {inf['jednotka']}/den, "
                    f"loni ve stejném období {cislo(lon_d, 2)} – to je **{(pomer - 1) * 100:+.0f} %**. {rada_tip}")
 
+def dvoutarif(e):
+    t = tarif_podle.get(e)
+    return t is not None and float(t["cena_nt_kwh"] or 0) > 0
+
+
+def formular_stavu(e, v):
+    info = ENERGIE[e]
+    rs_all = platne_odecty(odecty, e)
+    posl = rs_all.iloc[-1] if not rs_all.empty else None
+    dvou = dvoutarif(e)
+    with st.form(f"novy_{e}", clear_on_submit=True):
+        st.markdown(f"**📝 Nový stav – {info['nazev'].lower()}**")
+        if dvou:
+            c1, c2, c3 = st.columns([2, 2, 2])
+            vt = c1.number_input("VT – vysoký tarif (kWh)", min_value=0.0, value=None, step=0.1, format="%.1f",
+                                 placeholder="T1", key=f"vt_{e}")
+            nt = c2.number_input("NT – nízký tarif (kWh)", min_value=0.0, value=None, step=0.1, format="%.1f",
+                                 placeholder="T2", key=f"nt_{e}")
+            dat = c3.date_input("Datum", value=dnes, format="DD.MM.YYYY", key=f"dat_{e}")
+            stav = (vt + nt) if vt is not None and nt is not None else None
+        else:
+            c1, c2 = st.columns([3, 2])
+            stav = c1.number_input(f"Stav ({info['jednotka']})", min_value=0.0, value=None,
+                                   step=0.1 if e == "elektrina" else 0.001,
+                                   format="%.1f" if e == "elektrina" else "%.3f",
+                                   placeholder="Opiš číslo z měřidla", key=f"stav_{e}")
+            dat = c2.date_input("Datum", value=dnes, format="DD.MM.YYYY", key=f"dat_{e}")
+            nt = None
+        pozn = st.text_input("Poznámka (nepovinné)", placeholder="např. po dovolené", key=f"pozn_{e}")
+        odeslat = st.form_submit_button("Uložit stav", type="primary", width="stretch")
+    if not odeslat:
+        return
+    if stav is None:
+        st.error("Zadej VT i NT." if dvou else "Zadej stav měřidla.")
+        return
+    if posl is not None and dat >= posl["datum"] and stav < posl["stav"]:
+        st.error(f"Stav je nižší než poslední ({cislo(posl['stav'], info['desetiny'])}). Zkontroluj číslo.")
+        return
+    novy = pd.DataFrame([{"id": nove_id(), "datum": dat.isoformat(), "energie": e,
+                          "stav": stav, "typ": "vlastní",
+                          "poznamka": (f"VT {cislo(stav - nt, 1)} + NT {cislo(nt, 1)}" + (f" · {pozn}" if pozn else ""))
+                          if dvou else pozn,
+                          "meridlo": posledni_meridlo(odecty, e), "stav_nt": nt}])
+    ven = pd.concat([odecty.assign(datum=odecty["datum"].astype(str)), novy], ignore_index=True)
+    ul.uloz(L_ODECTY, ven[SLOUPCE_ODECTY])
+    zprava = f"Uloženo: {info['nazev']} {cislo(stav, info['desetiny'])} {info['jednotka']}"
+    if posl is not None and dat > posl["datum"]:
+        rozdil = stav - posl["stav"]
+        dni = (dat - posl["datum"]).days
+        t_ = tarif_podle[e]
+        if dvou and pd.notna(posl["stav_nt"]):
+            d_nt = nt - posl["stav_nt"]
+            cena_od_minule = (rozdil - d_nt) * float(t_["cena_za_kwh"]) + d_nt * float(t_["cena_nt_kwh"])
+        else:
+            cena_j = v["cena_jednotky"] if v else float(t_["cena_za_kwh"]) * float(t_["kwh_na_jednotku"])
+            cena_od_minule = rozdil * cena_j
+        zprava += (f" · od minule +{cislo(rozdil, info['desetiny'])} {info['jednotka']} za {dni} dní"
+                   f" ≈ {kc(cena_od_minule)}")
+    st.session_state["ulozeno"] = zprava
+    st.rerun()
+
+
 # ─────────────────────────────────────────────
 # ZÁLOŽKY PO ENERGIÍCH
 # ─────────────────────────────────────────────
@@ -935,7 +1158,8 @@ for e, tab in zip(PORADI, zalozky):
         info = ENERGIE[e]
         acc = info["barva"]
         if not v:
-            st.info("Zatím žádná data.")
+            st.info(DUVOD.get(e, "Zatím žádná data."))
+            formular_stavu(e, None)
             continue
 
         # Barometry
@@ -1001,36 +1225,7 @@ for e, tab in zip(PORADI, zalozky):
 </div>
 """, unsafe_allow_html=True)
 
-        # Zadání stavu
-        with st.form(f"novy_{e}", clear_on_submit=True):
-            st.markdown(f"**📝 Nový stav – {info['nazev'].lower()}**")
-            c1, c2 = st.columns([3, 2])
-            stav = c1.number_input(f"Stav ({info['jednotka']})", min_value=0.0, value=None,
-                                   step=0.1 if e == "elektrina" else 0.001,
-                                   format="%.1f" if e == "elektrina" else "%.3f",
-                                   placeholder="Opiš číslo z měřidla", key=f"stav_{e}")
-            dat = c2.date_input("Datum", value=dnes, format="DD.MM.YYYY", key=f"dat_{e}")
-            pozn = st.text_input("Poznámka (nepovinné)", placeholder="např. po dovolené", key=f"pozn_{e}")
-            odeslat = st.form_submit_button("Uložit stav", type="primary", width="stretch")
-        if odeslat:
-            if stav is None:
-                st.error("Zadej stav měřidla.")
-            elif dat >= v["posledni_datum"] and stav < v["posledni_stav"]:
-                st.error(f"Stav je nižší než poslední ({cislo(v['posledni_stav'], info['desetiny'])}). Zkontroluj číslo.")
-            else:
-                novy = pd.DataFrame([{"id": nove_id(), "datum": dat.isoformat(), "energie": e,
-                                      "stav": stav, "typ": "vlastní", "poznamka": pozn,
-                                      "meridlo": MERIDLO_AKTUALNI.get(e, "")}])
-                ven = pd.concat([odecty.assign(datum=odecty["datum"].astype(str)), novy], ignore_index=True)
-                ul.uloz("odecty", ven[SLOUPCE_ODECTY])
-                zprava = f"Uloženo: {info['nazev']} {cislo(stav, info['desetiny'])} {info['jednotka']}"
-                if dat > v["posledni_datum"]:
-                    rozdil = stav - v["posledni_stav"]
-                    dni = (dat - v["posledni_datum"]).days
-                    zprava += (f" · od minule +{cislo(rozdil, info['desetiny'])} {info['jednotka']} za {dni} dní"
-                               f" ≈ {kc(rozdil * v['cena_jednotky'])}")
-                st.session_state["ulozeno"] = zprava
-                st.rerun()
+        formular_stavu(e, v)
 
         # Graf skutečnost vs plán
         st.markdown(f'<div class="sekce">Průběh zúčtovacího období</div>', unsafe_allow_html=True)
@@ -1060,7 +1255,10 @@ for e, tab in zip(PORADI, zalozky):
                                      title=dict(text=info["jednotka"], font=dict(size=11))))
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=f"graf_{e}")
         st.markdown(f'<div class="pozn">Od {datum_cz(od)}: {cislo(v["pouzito"], 1)} {info["jednotka"]}, '
-                    f'plán {cislo(v["plan"], 1)} {info["jednotka"]}. Plán = roční odhad rozložený podle typického průběhu roku.</div>',
+                    f'plán {cislo(v["plan"], 1)} {info["jednotka"]}. Plán = roční odhad rozložený podle typického průběhu roku.'
+                    + (f' Stav na začátku období ({cislo(v["stav_od"], 0)}) je dopočítaný z odečtů okolo.' if v["stav_od_odhad"] else '')
+                    + (f' Cena je průměr VT/NT podle tvé spotřeby (NT {v["podil_nt"] * 100:.0f} %).' if v["podil_nt"] is not None else '')
+                    + '</div>',
                     unsafe_allow_html=True)
 
         # Srovnání let
@@ -1190,17 +1388,26 @@ st.markdown('<div class="sekce">Správa</div>', unsafe_allow_html=True)
 with st.expander("🔌 Co kolik stojí"):
     t_el, t_pl, t_vo = tarif_podle.get("elektrina"), tarif_podle.get("plyn"), tarif_podle.get("voda")
     c_kwh = float(t_el["cena_za_kwh"]) if t_el is not None else 0
+    c_nt = float(t_el["cena_nt_kwh"]) if t_el is not None and float(t_el["cena_nt_kwh"]) > 0 else c_kwh
     c_plyn = float(t_pl["cena_za_kwh"]) if t_pl is not None else 0
     c_voda = float(t_vo["cena_za_kwh"]) if t_vo is not None else 0
-    st.caption(f"Podle tvých cen s DPH: elektřina {cislo(c_kwh, 2)} Kč/kWh, plyn {cislo(c_plyn, 2)} Kč/kWh, "
-               f"voda {cislo(c_voda / 1000, 3)} Kč/litr. Jen proměnná část – stálé platby zaplatíš tak jako tak.")
+    if t_pl is not None:
+        c_ohrev, ucin, ohrev_txt = c_plyn, 0.9, "teplá voda ohřátá plynovým kotlem o 30 °C"
+    else:
+        c_ohrev, ucin, ohrev_txt = c_nt, 0.95, ("teplá voda z elektrického bojleru v nízkém tarifu (NT)"
+                                                 if c_nt != c_kwh else "teplá voda z elektrického bojleru")
+    st.caption(f"Podle cen s DPH: elektřina {cislo(c_kwh, 2)} Kč/kWh"
+               + (f" (NT {cislo(c_nt, 2)})" if c_nt != c_kwh else "")
+               + (f", plyn {cislo(c_plyn, 2)} Kč/kWh" if t_pl is not None else "")
+               + (f", voda {cislo(c_voda / 1000, 3)} Kč/litr" if c_voda else "")
+               + ". Jen proměnná část – stálé platby zaplatíš tak jako tak.")
 
-    def ohrev_plynem(litry, delta=30, ucinnost=0.9):
-        return litry * 4.186 * delta / 3600 / ucinnost  # kWh plynu
+    def ohrev_plynem(litry, delta=30, ucinnost=None):
+        return litry * 4.186 * delta / 3600 / (ucinnost or ucin)  # kWh energie na ohřev
 
     polozky = [
-        ("🛁", "Vana teplé vody (150 l)", ohrev_plynem(150) * c_plyn + 0.150 * c_voda),
-        ("🚿", "Sprcha 5 min (50 l)", ohrev_plynem(50) * c_plyn + 0.050 * c_voda),
+        ("🛁", "Vana teplé vody (150 l)", ohrev_plynem(150) * c_ohrev + 0.150 * c_voda),
+        ("🚿", "Sprcha 5 min (50 l)", ohrev_plynem(50) * c_ohrev + 0.050 * c_voda),
         ("👕", "Praní 40 °C", 0.8 * c_kwh + 0.050 * c_voda),
         ("🌀", "Sušička – jedna dávka", 2.5 * c_kwh),
         ("🍽️", "Myčka – jeden cyklus", 1.0 * c_kwh + 0.012 * c_voda),
@@ -1212,11 +1419,50 @@ with st.expander("🔌 Co kolik stojí"):
         ("🧊", "Lednička – den", 0.7 * c_kwh),
         ("🚽", "Spláchnutí (6 l)", 0.006 * c_voda),
         ("📱", "Nabití telefonu", 0.015 * c_kwh),
+        ("💡", "LED žárovka 9 W – večer (5 h)", 0.045 * c_kwh),
+        ("💡", "Klasická žárovka 60 W – večer (5 h)", 0.3 * c_kwh),
+        ("🔦", "Halogenová bodovka 35 W – večer (5 h)", 0.175 * c_kwh),
+        ("🌙", "Venkovní světlo LED 10 W – celou noc (12 h)", 0.12 * c_kwh),
     ]
     st.markdown("".join(
         f'<div class="cena-radek"><span>{ik} {n}</span><b>{cislo(k, 2) if k < 10 else cislo(k, 0)} Kč</b></div>'
         for ik, n, k in polozky), unsafe_allow_html=True)
-    st.caption("Orientační hodnoty pro běžné spotřebiče; teplá voda ohřátá plynovým kotlem o 30 °C.")
+    st.caption(f"Orientační hodnoty pro běžné spotřebiče (ve vysokém tarifu); {ohrev_txt}.")
+
+    st.markdown("**💡 Svícení doma**")
+    st.caption("Spočítej světla po místnostech nebo celý dům najednou – a kolik by ušetřila výměna za LED.")
+    TYPY_SVETEL = {"LED žárovka (9 W)": 9, "LED bodovka (5 W)": 5, "Úsporná zářivka (15 W)": 15,
+                   "Halogenová bodovka (35 W)": 35, "Halogen (50 W)": 50, "Klasická žárovka (60 W)": 60,
+                   "Klasická žárovka (100 W)": 100}
+    if "svetla" not in st.session_state:
+        st.session_state["svetla"] = [{"typ": "LED žárovka (9 W)", "kusu": 6, "hodin": 4.0}]
+    for idx, sv in enumerate(st.session_state["svetla"]):
+        c1, c2, c3, c4 = st.columns([4, 2, 2, 1])
+        sv["typ"] = c1.selectbox("Typ", list(TYPY_SVETEL), index=list(TYPY_SVETEL).index(sv["typ"]),
+                                 key=f"sv_t_{idx}", label_visibility="collapsed" if idx else "visible")
+        sv["kusu"] = c2.number_input("Kusů", min_value=0, value=int(sv["kusu"]), step=1, key=f"sv_k_{idx}",
+                                     label_visibility="collapsed" if idx else "visible")
+        sv["hodin"] = c3.number_input("Hodin/den", min_value=0.0, max_value=24.0, value=float(sv["hodin"]), step=0.5,
+                                      key=f"sv_h_{idx}", label_visibility="collapsed" if idx else "visible")
+        if idx and c4.button("✕", key=f"sv_x_{idx}", help="Odebrat řádek"):
+            st.session_state["svetla"].pop(idx)
+            st.rerun()
+    if st.button("＋ Přidat další světla", key="sv_pridat"):
+        st.session_state["svetla"].append({"typ": "Halogenová bodovka (35 W)", "kusu": 4, "hodin": 3.0})
+        st.rerun()
+    kwh_rok = sum(TYPY_SVETEL[x["typ"]] * x["kusu"] * x["hodin"] for x in st.session_state["svetla"]) / 1000 * 365
+    kwh_rok_led = sum((TYPY_SVETEL[x["typ"]] if "LED" in x["typ"] else
+                       max(5, round(TYPY_SVETEL[x["typ"]] * 0.15))) * x["kusu"] * x["hodin"]
+                      for x in st.session_state["svetla"]) / 1000 * 365
+    uspora = (kwh_rok - kwh_rok_led) * c_kwh
+    st.markdown(f"""
+<div class="dnes">
+  <div class="l">Svícení stojí ročně</div>
+  <div class="v">{kc(kwh_rok * c_kwh)}</div>
+  <div class="s">≈ {kc(kwh_rok * c_kwh / 12)} měsíčně · {cislo(kwh_rok, 0)} kWh za rok</div>
+  {f'<div class="s" style="color:{BARVA_OK};font-weight:600;margin-top:8px">Výměnou za LED bys ušetřil ≈ {kc(uspora)} ročně</div>' if uspora > 1 else ''}
+</div>""", unsafe_allow_html=True)
+    st.caption("LED náhrada počítá s ~15 % příkonu původní žárovky (např. 60 W → 9 W, 35 W bodovka → 5 W).")
 
     st.markdown("**Vlastní spotřebič**")
     c1, c2, c3 = st.columns(3)
@@ -1241,16 +1487,17 @@ with st.expander("📄 Roční přehled do PDF"):
         rok_pdf = st.selectbox("Rok", roky_vse, key="rok_pdf")
         if st.button("Připravit PDF", key="pdf_btn", width="stretch"):
             with st.spinner("Chystám PDF…"):
-                st.session_state["pdf_data"] = (rok_pdf, rocni_pdf(rok_pdf, odecty, tarif_podle, vysledky))
+                st.session_state["pdf_data"] = (MISTO_KLIC, rok_pdf,
+                                                rocni_pdf(rok_pdf, odecty, tarif_podle, vysledky, MISTO_KLIC))
         pdf = st.session_state.get("pdf_data")
-        if pdf and pdf[0] == rok_pdf:
-            st.download_button("⬇️ Stáhnout PDF", data=pdf[1], file_name=f"energie_prehled_{rok_pdf}.pdf",
+        if pdf and pdf[0] == MISTO_KLIC and pdf[1] == rok_pdf:
+            st.download_button("⬇️ Stáhnout PDF", data=pdf[2], file_name=f"energie_{MISTO_KLIC}_{rok_pdf}.pdf",
                                mime="application/pdf", type="primary", width="stretch")
 
 with st.expander("💡 Porovnat nabídku jiného dodavatele"):
     st.caption("Dodavatel ovlivní jen obchodní část ceny (cena za kWh + stálý plat). Distribuce a poplatky "
                "státu jsou u všech stejné, proto se porovnává jen obchodní část – podle tvé skutečné roční spotřeby.")
-    k_e = st.radio("Energie", ["elektrina", "plyn"], horizontal=True, label_visibility="collapsed",
+    k_e = st.radio("Energie", [x for x in ["elektrina", "plyn"] if x in PORADI], horizontal=True, label_visibility="collapsed",
                    format_func=lambda x: f"{ENERGIE[x]['ikona']} {ENERGIE[x]['nazev']}", key="kalk_e")
     t = tarif_podle.get(k_e)
     v = vysledky.get(k_e)
@@ -1292,7 +1539,8 @@ with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
         rid = r["id"]
         c1, c2, c3 = st.columns([6, 1, 1])
         c1.markdown(f"{inf['ikona']} **{cislo(r['stav'], inf['desetiny'])} {inf['jednotka']}** · {datum_cz(r['datum'])}"
-                    f"  \n<span style='font-size:.8rem;color:{BARVA_TEXT_TLUMENY}'>{r['typ']}"
+                    + (f" · VT {cislo(r['stav'] - r['stav_nt'], 1)} / NT {cislo(r['stav_nt'], 1)}" if pd.notna(r['stav_nt']) else "")
+                    + f"  \n<span style='font-size:.8rem;color:{BARVA_TEXT_TLUMENY}'>{r['typ']}"
                     f"{' · ' + r['poznamka'] if r['poznamka'] else ''}</span>", unsafe_allow_html=True)
         if c2.button("✏️", key=f"upr_{rid}", help="Upravit"):
             st.session_state["upravuji"] = rid
@@ -1306,7 +1554,7 @@ with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
             a, b = st.columns(2)
             if a.button("Ano, smazat", key=f"ano_{rid}", type="primary", width="stretch"):
                 ven = odecty[odecty["id"] != rid].assign(datum=lambda d: d["datum"].astype(str))
-                ul.uloz("odecty", ven[SLOUPCE_ODECTY])
+                ul.uloz(L_ODECTY, ven[SLOUPCE_ODECTY])
                 st.session_state.pop("mazu", None)
                 st.session_state["ulozeno"] = "Odečet smazán."
                 st.rerun()
@@ -1317,7 +1565,14 @@ with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
         if st.session_state.get("upravuji") == rid:
             typy = ["vlastní", "odečet", "odhad"]
             with st.form(f"form_{rid}"):
-                n_stav = st.number_input("Stav", value=float(r["stav"]), min_value=0.0, step=0.001, format="%.3f")
+                if pd.notna(r["stav_nt"]):
+                    c1_, c2_ = st.columns(2)
+                    n_vt = c1_.number_input("VT", value=float(r["stav"] - r["stav_nt"]), min_value=0.0, step=0.1, format="%.1f")
+                    n_nt = c2_.number_input("NT", value=float(r["stav_nt"]), min_value=0.0, step=0.1, format="%.1f")
+                    n_stav = n_vt + n_nt
+                else:
+                    n_nt = None
+                    n_stav = st.number_input("Stav", value=float(r["stav"]), min_value=0.0, step=0.001, format="%.3f")
                 n_dat = st.date_input("Datum", value=r["datum"], format="DD.MM.YYYY")
                 n_typ = st.selectbox("Typ", typy, index=typy.index(r["typ"]) if r["typ"] in typy else 0)
                 n_pozn = st.text_input("Poznámka", value=r["poznamka"])
@@ -1327,9 +1582,9 @@ with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
             if ok:
                 ven = odecty.copy()
                 m = ven["id"] == rid
-                ven.loc[m, ["stav", "datum", "typ", "poznamka"]] = [n_stav, n_dat, n_typ, n_pozn]
+                ven.loc[m, ["stav", "datum", "typ", "poznamka", "stav_nt"]] = [n_stav, n_dat, n_typ, n_pozn, n_nt]
                 ven["datum"] = ven["datum"].astype(str)
-                ul.uloz("odecty", ven[SLOUPCE_ODECTY])
+                ul.uloz(L_ODECTY, ven[SLOUPCE_ODECTY])
                 st.session_state.pop("upravuji", None)
                 st.session_state["ulozeno"] = "Odečet upraven."
                 st.rerun()
@@ -1351,11 +1606,16 @@ with st.expander("⚙️ Ceny a zálohy"):
         t = t.iloc[0]
         info = ENERGIE[e]
         with st.form(f"tarif_{e}"):
-            st.markdown(f"**{info['ikona']} {info['nazev']}** · {t['dodavatel']}")
+            st.markdown(f"**{info['ikona']} {info['nazev']}**")
             c1, c2 = st.columns(2)
-            zaloha = c1.number_input("Měsíční záloha (Kč)", value=float(t["zaloha"]), step=10.0, format="%.0f")
-            cena = c2.number_input("Cena za kWh (Kč)" if e != "voda" else "Cena za m³ (Kč)",
+            dodavatel = c1.text_input("Dodavatel", value=str(t["dodavatel"]))
+            zaloha = c2.number_input("Měsíční záloha (Kč)", value=float(t["zaloha"]), step=10.0, format="%.0f")
+            c1, c2 = st.columns(2)
+            cena = c1.number_input(("Cena za kWh – VT (Kč)" if e == "elektrina" else "Cena za kWh (Kč)")
+                                   if e != "voda" else "Cena za m³ (Kč)",
                                    value=float(t["cena_za_kwh"]), step=0.01, format="%.5f")
+            cena_nt = c2.number_input("Cena za kWh – NT (0 = jednotarif)", value=float(t["cena_nt_kwh"]),
+                                      step=0.01, format="%.5f", disabled=(e != "elektrina"))
             c1, c2 = st.columns(2)
             mes = c1.number_input("Měsíční stálé platby (Kč)", value=float(t["mesicni_platy"]), step=1.0, format="%.2f")
             prepocet = c2.number_input("kWh na jednotku", value=float(t["kwh_na_jednotku"]), step=0.01, format="%.3f",
@@ -1363,7 +1623,7 @@ with st.expander("⚙️ Ceny a zálohy"):
             c1, c2, c3 = st.columns(3)
             od = c1.date_input("Období od", value=pd.to_datetime(t["obdobi_od"]).date(), format="DD.MM.YYYY")
             do = c2.date_input("Období do", value=pd.to_datetime(t["obdobi_do"]).date(), format="DD.MM.YYYY")
-            stav_od = c3.number_input("Stav na začátku", value=float(t["stav_obdobi_od"]), step=0.001, format="%.3f")
+            stav_od = c3.number_input("Stav na začátku (0 = dopočítat)", value=float(t["stav_obdobi_od"]), step=0.001, format="%.3f")
             c1, c2 = st.columns(2)
             zaplaceno = c1.number_input("Zaplaceno v období (Kč)", value=float(t["zaplaceno"]), step=10.0, format="%.0f")
             k_datu = c2.date_input("…k datu", value=pd.to_datetime(t["zaplaceno_k_datu"]).date(), format="DD.MM.YYYY")
@@ -1389,11 +1649,11 @@ with st.expander("⚙️ Ceny a zálohy"):
                 ven.loc[m, ["zaloha", "cena_za_kwh", "mesicni_platy", "kwh_na_jednotku", "obdobi_od", "obdobi_do",
                             "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati",
                             "ucet", "vs", "den_splatnosti", "obchodni_kwh", "obchodni_mesic",
-                            "konec_smlouvy", "konec_popis"]] = [
+                            "konec_smlouvy", "konec_popis", "dodavatel", "cena_nt_kwh"]] = [
                     zaloha, cena, mes, prepocet, od.isoformat(), do.isoformat(), stav_od,
                     zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den, obch_kwh, obch_mes,
-                    konec.isoformat() if konec else "", konec_txt]
-                ul.uloz("tarify", ven[SLOUPCE_TARIFY])
+                    konec.isoformat() if konec else "", konec_txt, dodavatel.strip(), cena_nt if e == "elektrina" else 0]
+                ul.uloz(L_TARIFY, ven[SLOUPCE_TARIFY])
                 st.session_state["ulozeno"] = f"{info['nazev']}: ceny a zálohy uloženy."
                 st.rerun()
     st.caption("Zálohy splatné po datu „k datu“ appka připočítává automaticky každý měsíc.")
@@ -1405,6 +1665,6 @@ st.markdown(f"""
 <div class="paticka">
   Autor: <b>{AUTOR}</b><br>
   E-mail: <b>{EMAIL}</b><br>
-  <span style="font-size:.75rem">Data: {ul.popis}</span>
+  <span style="font-size:.75rem">Odběrné místo: {MISTO['nazev']}, {MISTO['obec']} · data: {ul.popis}</span>
 </div>
 """, unsafe_allow_html=True)
