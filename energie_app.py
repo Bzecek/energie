@@ -807,6 +807,9 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .mk-nazev {{ font-size: 1.15rem; font-weight: 700; color: #f8fafc; margin-top: 4px; }}
 .mk-obec {{ font-size: .82rem; color: {BARVA_TEXT_TLUMENY}; margin-top: 2px; }}
 .mk-energie {{ font-size: 1.2rem; margin-top: 8px; letter-spacing: 4px; }}
+div[class*="st-key-prepni_"] button {{ min-height: 3rem; border-radius: 14px; font-weight: 600; }}
+div[class*="st-key-prepni_"] button:disabled {{ background: rgba(16,185,129,.18); border: 1px solid {BARVA_PRIMARNI};
+  color: #6ee7b7; opacity: 1; cursor: default; }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -896,15 +899,16 @@ MISTO = MISTA[MISTO_KLIC]
 PORADI = MISTO["energie"]
 L_ODECTY, L_TARIFY = MISTO["list_odecty"], MISTO["list_tarify"]
 
-volba_mista = st.segmented_control(
-    "Odběrné místo", list(MISTA), default=MISTO_KLIC, key="prepinac_mista", label_visibility="collapsed",
-    format_func=lambda k: f"{MISTA[k]['ikona']} {MISTA[k]['nazev']}", width="stretch")
-if volba_mista and volba_mista != MISTO_KLIC:
-    st.session_state["misto"] = volba_mista
-    st.query_params["misto"] = volba_mista
-    for k in ["upravuji", "mazu", "pdf_data"]:
-        st.session_state.pop(k, None)
-    st.rerun()
+sloupce_mist = st.columns(len(MISTA), gap="small")
+for sl, (klic, mm) in zip(sloupce_mist, MISTA.items()):
+    aktivni = klic == MISTO_KLIC
+    if sl.button(f"{mm['ikona']} {mm['nazev']}", key=f"prepni_{klic}", width="stretch",
+                 type="primary" if aktivni else "secondary", disabled=aktivni):
+        st.session_state["misto"] = klic
+        st.query_params["misto"] = klic
+        for k in ["upravuji", "mazu", "pdf_data"]:
+            st.session_state.pop(k, None)
+        st.rerun()
 
 ul = Uloziste()
 odecty, tarify = nacti_data(ul, MISTO_KLIC)
