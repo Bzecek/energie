@@ -610,6 +610,20 @@ def srovnani_pocasi(an, teploty, konec):
 # ─────────────────────────────────────────────
 # ROČNÍ PŘEHLED – PDF
 # ─────────────────────────────────────────────
+def obrazek_domu(misto, sirka=1600):
+    """Ilustrace domu jako PNG (pro PDF). Bez knihovny resvg vrátí None."""
+    try:
+        import resvg_py
+        svg = {"pruhony": svg_pruhony, "strkov": svg_strkov}.get(misto, svg_obecny)()
+        return bytes(resvg_py.svg_to_bytes(svg_string=svg, width=sirka, height=int(sirka * 9 / 16)))
+    except Exception:
+        return None
+
+
+def _rgb(hexb):
+    return tuple(int(hexb[i:i + 2], 16) for i in (1, 3, 5))
+
+
 def rocni_pdf(rok, odecty, tarif_podle, vysledky, misto):
     import io
     import matplotlib
@@ -619,89 +633,169 @@ def rocni_pdf(rok, odecty, tarif_podle, vysledky, misto):
 
     font = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans.ttf")
     font_b = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans-Bold.ttf")
+    mm_ = MISTA[misto]
+
     class Prehled(FPDF):
         def footer(self):
             self.set_y(-11)
             self.set_font("DV", "", 8)
             self.set_text_color(148, 163, 184)
-            self.cell(0, 5, f"Energie · {MISTA[misto]['nazev']} · přehled roku {rok}", align="L")
+            self.cell(0, 5, f"Energie · {mm_['nazev']} · přehled roku {rok}", align="L")
             self.set_x(-40)
             self.cell(26, 5, f"Strana {self.page_no()} / {{nb}}", align="R")
 
     pdf = Prehled(format="A4")
     pdf.set_auto_page_break(True, margin=16)
+    pdf.add_font("DV", "", font)
+    pdf.add_font("DV", "B", font_b)
 
     def drz_pohromade(vyska_mm):
         """Když se blok nevejde na zbytek stránky, začni novou – sekce se nerozdělí."""
         if pdf.get_y() + vyska_mm > pdf.h - 16:
             pdf.add_page()
             pdf.set_y(16)
-    pdf.add_font("DV", "", font)
-    pdf.add_font("DV", "B", font_b)
-    pdf.add_page()
-    zelena = (16, 185, 129)
 
-    pdf.set_fill_color(17, 24, 39)
-    pdf.rect(0, 0, 210, 34, "F")
-    pdf.set_text_color(248, 250, 252)
-    pdf.set_font("DV", "B", 20)
-    pdf.set_xy(14, 10)
-    pdf.cell(0, 9, f"{MISTA[misto]['nazev']} – přehled roku {rok}")
-    pdf.set_font("DV", "", 9.5)
-    pdf.set_xy(14, 21)
-    pdf.cell(0, 6, f"{MISTA[misto]['nazev']}, {MISTA[misto]['obec']} · vytvořeno {datum_cz(date.today())}")
-    pdf.set_text_color(30, 41, 59)
-    pdf.set_y(42)
-
+    # --- data za rok ---
     nazvy_m = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"]
-    souhrn = []
+    data = []
     for e in PORADI:
-        info = ENERGIE[e]
         t = tarif_podle.get(e)
         v = vysledky.get(e)
         rada = denni_rada(odecty, e)
-        if t is None or not v or rada.empty:
+        if t is None or rada.empty:
             continue
         r = rada[[d.year == rok for d in rada.index]]
         if r.empty:
             continue
         p = rada[[d.year == rok - 1 for d in rada.index]]
-        spotreba = r.sum()
         dni = len(r)
-        prumer = r.mean()
-        zmena = (prumer / p.mean() - 1) * 100 if not p.empty and p.mean() > 0 else None
-        naklad = spotreba * v["cena_jednotky"] + dni / 365 * 12 * float(t["mesicni_platy"])
-        souhrn.append((e, spotreba, dni, prumer, zmena, naklad))
+        zmena = (r.mean() / p.mean() - 1) * 100 if not p.empty and p.mean() > 0 else None
+        if v:
+            cena_j = v["cena_jednotky"]
+        else:  # bez aktuálního výpočtu – cena z ceníku (u dvoutarifu průměr VT/NT 30:70)
+            cena_j = float(t["cena_za_kwh"]) * float(t["kwh_na_jednotku"])
+            if float(t["cena_nt_kwh"] or 0) > 0:
+                cena_j = 0.3 * float(t["cena_za_kwh"]) + 0.7 * float(t["cena_nt_kwh"])
+        naklad = r.sum() * cena_j + dni / 365 * 12 * float(t["mesicni_platy"])
+        data.append({"e": e, "r": r, "p": p, "spotreba": r.sum(), "dni": dni, "prumer": r.mean(),
+                     "zmena": zmena, "naklad": naklad})
+    celkem = sum(d["naklad"] for d in data)
 
-        drz_pohromade(8 + 4 * 6 + 186 * 2.1 / 7.2 + 6)
+    # --- titulní strana: dům s kartami ---
+    pdf.add_page()
+    vyska_obr = 210 * 9 / 16
+    png = obrazek_domu(misto)
+    if png:
+        pdf.image(io.BytesIO(png), x=0, y=0, w=210, h=vyska_obr)
+    else:
+        pdf.set_fill_color(17, 24, 39)
+        pdf.rect(0, 0, 210, vyska_obr, "F")
+
+    def karta(x, y, w, h, barva=None):
+        with pdf.local_context(fill_opacity=0.84):
+            pdf.set_fill_color(15, 23, 42)
+            pdf.rect(x, y, w, h, style="F", round_corners=True, corner_radius=2.5)
+        with pdf.local_context(stroke_opacity=0.45):
+            pdf.set_draw_color(148, 163, 184)
+            pdf.set_line_width(0.2)
+            pdf.rect(x, y, w, h, style="D", round_corners=True, corner_radius=2.5)
+        if barva:
+            pdf.set_draw_color(*_rgb(barva))
+            pdf.set_line_width(0.9)
+            pdf.line(x + 2.5, y + 0.3, x + w - 2.5, y + 0.3)
+
+    def text(x, y, s_, velikost, tucne=False, barva=(248, 250, 252), w=0, zarovnani="L"):
+        pdf.set_font("DV", "B" if tucne else "", velikost)
+        pdf.set_text_color(*barva)
+        pdf.set_xy(x, y)
+        pdf.cell(w, velikost * 0.45, s_, align=zarovnani)
+
+    # titulek
+    karta(7, 7, 92, 21)
+    text(11, 10, f"Přehled roku {rok}", 16, True)
+    text(11, 19.5, f"{mm_['nazev']}, {mm_['obec']} · vytvořeno {datum_cz(date.today())}", 7.5, barva=(148, 163, 184))
+
+    # karty energií na domě (stejné rozmístění jako v appce)
+    pozice = {"pruhony": {"plyn": (0.63, 0.05, None), "elektrina": (None, 0.50, 0.025), "voda": (0.33, None, 0.04)},
+              "strkov": {"elektrina": (0.69, 0.05, None), "voda": (0.33, None, 0.04)}}.get(
+        misto, {"plyn": (0.56, 0.06, None), "elektrina": (0.74, 0.38, None), "voda": (0.25, None, 0.05)})
+    kw, kh = 56, 25
+    for d in data:
+        e = d["e"]
+        inf = ENERGIE[e]
+        lx, ty, dalsi = pozice[e]
+        x = 210 - 210 * dalsi - kw if lx is None else 210 * lx
+        y = vyska_obr - vyska_obr * dalsi - kh if ty is None else vyska_obr * ty
+        x = min(x, 210 - kw - 4)
+        karta(x, y, kw, kh, inf["barva"])
+        text(x + 4, y + 3.5, inf["nazev"], 8, True, (203, 213, 225))
+        text(x + 4, y + 8.5, f"{cislo(d['spotreba'], 0)} {inf['jednotka']}", 14, True)
+        zm = f"{d['zmena']:+.0f} % proti {rok - 1}" if d["zmena"] is not None else "bez srovnání"
+        barva_zm = (148, 163, 184) if d["zmena"] is None else ((239, 68, 68) if d["zmena"] > 3 else
+                                                              (34, 197, 94) if d["zmena"] < -3 else (148, 163, 184))
+        text(x + 4, y + 16, kc(d["naklad"]), 8.5, True, (226, 232, 240))
+        text(x + 4, y + 20.3, zm, 7, False, barva_zm)
+
+    # souhrn roku vlevo
+    if data:
+        sx, sy, sw = 7, 33, 58
+        sh = 15 + 6 * len(data) + 13
+        karta(sx, sy, sw, sh)
+        text(sx + 4, sy + 3.5, f"Rok {rok} celkem", 8.5, True, (226, 232, 240))
+        yy = sy + 10
+        for d in data:
+            inf = ENERGIE[d["e"]]
+            pdf.set_fill_color(*_rgb(inf["barva"]))
+            pdf.ellipse(sx + 4, yy + 0.9, 2.2, 2.2, "F")
+            text(sx + 8, yy, inf["nazev"], 7.5, False, (203, 213, 225))
+            text(sx + 4, yy, kc(d["naklad"]), 7.5, True, w=sw - 8, zarovnani="R")
+            yy += 6
+        with pdf.local_context(stroke_opacity=0.4):
+            pdf.set_draw_color(148, 163, 184)
+            pdf.set_line_width(0.2)
+            pdf.line(sx + 4, yy + 0.5, sx + sw - 4, yy + 0.5)
+        text(sx + 4, yy + 2.5, "Celkem", 8.5, True)
+        text(sx + 4, yy + 2.5, kc(celkem), 8.5, True, w=sw - 8, zarovnani="R")
+        text(sx + 4, yy + 7.5, "měsíčně", 7, False, (148, 163, 184))
+        text(sx + 4, yy + 7.5, kc(celkem / 12), 7, False, (148, 163, 184), w=sw - 8, zarovnani="R")
+
+    # --- detail po energiích ---
+    pdf.set_y(vyska_obr + 8)
+    pdf.set_left_margin(14)
+    for d in data:
+        e = d["e"]
+        info = ENERGIE[e]
+        drz_pohromade(10 + 2 * 6 + 186 * 2.1 / 7.2 + 6)
+        pdf.set_x(14)
+        pdf.set_fill_color(*_rgb(info["barva"]))
+        pdf.rect(14, pdf.get_y() + 1.2, 1.6, 6, "F")
+        pdf.set_x(18)
         pdf.set_font("DV", "B", 13)
         pdf.set_text_color(30, 41, 59)
         pdf.cell(0, 8, info["nazev"], new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("DV", "", 10)
-        radky = [
-            ("Spotřeba", f"{cislo(spotreba, 0)} {info['jednotka']}" + ("" if dni >= 360 else f"  (data za {dni} dní)")),
-            ("Průměr na den", f"{cislo(prumer, 2)} {info['jednotka']}"),
-            ("Změna proti roku " + str(rok - 1), f"{zmena:+.0f} %" if zmena is not None else "–"),
-            ("Náklad (dnešní ceny vč. stálých plateb)", kc(naklad)),
-        ]
-        for a, b in radky:
-            pdf.cell(95, 6, a)
-            pdf.cell(0, 6, b, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DV", "", 9.5)
+        pdf.set_text_color(71, 85, 105)
+        radek = (f"Spotřeba {cislo(d['spotreba'], 0)} {info['jednotka']}"
+                 + ("" if d["dni"] >= 360 else f" (data za {d['dni']} dní)")
+                 + f" · průměr {cislo(d['prumer'], 2)} {info['jednotka']}/den"
+                 + (f" · {d['zmena']:+.0f} % proti {rok - 1}" if d["zmena"] is not None else "")
+                 + f" · náklad {kc(d['naklad'])}")
+        pdf.multi_cell(0, 5.5, radek, new_x="LMARGIN", new_y="NEXT")
 
-        df = r.rename("h").to_frame()
-        df["m"] = [d.month for d in df.index]
+        df = d["r"].rename("h").to_frame()
+        df["m"] = [x_.month for x_ in df.index]
         mes = df.groupby("m")["h"].sum()
-        dfp = p.rename("h").to_frame()
-        if not dfp.empty:
-            dfp["m"] = [d.month for d in dfp.index]
+        if not d["p"].empty:
+            dfp = d["p"].rename("h").to_frame()
+            dfp["m"] = [x_.month for x_ in dfp.index]
             mesp = dfp.groupby("m")["h"].sum()
         else:
             mesp = pd.Series(dtype=float)
         fig, ax = plt.subplots(figsize=(7.2, 2.1), dpi=150)
         x = list(range(1, 13))
-        ax.bar([i + 0.2 for i in x], [mes.get(i, 0) for i in x], width=0.4, color=info["barva"], label=str(rok))
         if not mesp.empty:
-            ax.bar([i - 0.2 for i in x], [mesp.get(i, 0) for i in x], width=0.4, color="#94a3b8", label=str(rok - 1))
+            ax.bar([i - 0.2 for i in x], [mesp.get(i, 0) for i in x], width=0.4, color="#cbd5e1", label=str(rok - 1))
+        ax.bar([i + 0.2 for i in x], [mes.get(i, 0) for i in x], width=0.4, color=info["barva"], label=str(rok))
         ax.set_xticks(x)
         ax.set_xticklabels(nazvy_m, fontsize=8)
         ax.tick_params(axis="y", labelsize=8)
@@ -718,25 +812,18 @@ def rocni_pdf(rok, odecty, tarif_podle, vysledky, misto):
         pdf.image(buf, x=12, w=186)
         pdf.ln(3)
 
-    if souhrn:
-        drz_pohromade(48)
-        pdf.set_draw_color(*zelena)
-        pdf.set_line_width(0.6)
-        pdf.line(14, pdf.get_y(), 196, pdf.get_y())
-        pdf.ln(3)
-        pdf.set_font("DV", "B", 12)
-        pdf.cell(0, 8, "Celkem", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("DV", "", 10)
-        pdf.cell(95, 6, "Náklady za energie a vodu (dnešní ceny)")
-        pdf.cell(0, 6, kc(sum(x[5] for x in souhrn)), new_x="LMARGIN", new_y="NEXT")
-        pdf.cell(95, 6, "Měsíčně v průměru")
-        pdf.cell(0, 6, kc(sum(x[5] for x in souhrn) / 12), new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(2)
+    if data:
+        drz_pohromade(20)
         pdf.set_font("DV", "", 8)
         pdf.set_text_color(100, 116, 139)
         pdf.multi_cell(0, 4.5, "Spotřeba mezi odečty je rozpočítaná podle typického průběhu roku. Náklady jsou "
-                               "přepočtené aktuálními cenami s DPH, aby šly roky srovnávat – skutečně zaplacené "
-                               f"částky se mohou lišit. Autor: {AUTOR}, {EMAIL}")
+                               "přepočtené aktuálními cenami s DPH včetně stálých plateb, aby šly roky srovnávat – "
+                               f"skutečně zaplacené částky se mohou lišit. Autor: {AUTOR}, {EMAIL}")
+    else:
+        pdf.set_y(vyska_obr + 10)
+        pdf.set_font("DV", "", 11)
+        pdf.set_text_color(71, 85, 105)
+        pdf.cell(0, 8, f"Za rok {rok} zatím nejsou data.")
     return bytes(pdf.output())
 
 
@@ -908,6 +995,8 @@ div[class*="st-key-karta_"][class*="_voda"] {{ left: 25%; bottom: 5%; }}
 div.st-key-scena_obal div.st-key-karta_pruhony_plyn {{ left: 63%; top: 5%; }}
 div.st-key-scena_obal div.st-key-karta_pruhony_elektrina {{ left: auto; right: 2.5%; top: 50%; }}
 div.st-key-scena_obal div.st-key-karta_pruhony_voda {{ left: 33%; top: auto; bottom: 4%; }}
+div.st-key-scena_obal div.st-key-karta_strkov_elektrina {{ left: 69%; top: 5%; }}
+div.st-key-scena_obal div.st-key-karta_strkov_voda {{ left: 33%; top: auto; bottom: 4%; }}
 @media (max-width: 760px) {{
   div.st-key-scena_obal {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
   div.st-key-scena_obal > div:first-child {{ grid-column: span 2; }}
@@ -1169,6 +1258,171 @@ def ikona_pocasi(kod, den):
     return "⛈️" if kod >= 95 else "☁️"
 
 
+def svg_obecny():
+    """Obecný domek za soumraku (pro místa bez vlastní ilustrace)."""
+    plyn_cara = ('<path class="sc-tok" d="M 820 205 C 840 180, 850 165, 870 150" stroke="#f97316"/>' if "plyn" in PORADI else "")
+    return f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="nebe" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0b1430"/><stop offset=".45" stop-color="#27325a"/>
+    <stop offset=".72" stop-color="#7a4a6b"/><stop offset=".9" stop-color="#f08a4b"/><stop offset="1" stop-color="#f6b26b"/>
+  </linearGradient>
+  <linearGradient id="okno" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a3"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+  <linearGradient id="travnik" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3b2b"/><stop offset="1" stop-color="#0b1a14"/></linearGradient>
+  <radialGradient id="zare" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+  <linearGradient id="zed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9e4dc"/><stop offset="1" stop-color="#b9b2a7"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#nebe)"/>
+<g fill="#fff" opacity=".7"><circle cx="140" cy="80" r="1.6"/><circle cx="320" cy="140" r="1.2"/><circle cx="560" cy="60" r="1.4"/>
+<circle cx="980" cy="90" r="1.3"/><circle cx="1220" cy="50" r="1.6"/><circle cx="1420" cy="120" r="1.1"/><circle cx="760" cy="130" r="1"/></g>
+<circle cx="1330" cy="150" r="34" fill="#fde9c4" opacity=".9"/>
+<path d="M0 560 C 200 500, 360 520, 520 540 S 900 500, 1100 530 S 1450 510, 1600 540 V 900 H 0 Z" fill="#1f2a44" opacity=".9"/>
+<path d="M0 600 C 260 570, 520 590, 800 600 S 1300 580, 1600 600 V 900 H 0 Z" fill="url(#travnik)"/>
+<!-- stromy -->
+<g fill="#0e1b17"><ellipse cx="170" cy="470" rx="110" ry="150"/><rect x="160" y="560" width="18" height="80"/>
+<ellipse cx="1470" cy="490" rx="90" ry="130"/><rect x="1462" y="570" width="16" height="70"/></g>
+<!-- dům -->
+<ellipse cx="800" cy="460" rx="430" ry="260" fill="url(#zare)"/>
+<polygon points="470,330 800,160 1130,330" fill="#2b2f38"/>
+<polygon points="490,330 800,175 1110,330" fill="#3a3f4b"/>
+<rect x="840" y="150" width="46" height="110" fill="#4b4f5b"/><rect x="834" y="142" width="58" height="14" fill="#5a5f6b"/>
+<rect x="505" y="330" width="590" height="290" fill="url(#zed)"/>
+<rect x="505" y="330" width="590" height="16" fill="#00000022"/>
+<rect x="545" y="380" width="200" height="200" rx="4" fill="url(#okno)"/>
+<line x1="645" y1="380" x2="645" y2="580" stroke="#3a3f4b" stroke-width="6"/>
+<rect x="790" y="380" width="120" height="110" rx="4" fill="url(#okno)"/>
+<rect x="945" y="380" width="110" height="110" rx="4" fill="#ffd27a" opacity=".85"/>
+<rect x="795" y="520" width="80" height="100" rx="3" fill="#3a3f4b"/><circle cx="862" cy="572" r="4" fill="#d4a24a"/>
+<g fill="#2b2f38" opacity=".55"><rect x="560" y="470" width="40" height="70" rx="6"/><rect x="660" y="490" width="60" height="30" rx="6"/></g>
+<!-- skříň elektroměru a plynoměru -->
+<rect x="1110" y="470" width="70" height="95" rx="6" fill="#d8d3ca" stroke="#9a948a" stroke-width="3"/>
+<rect x="1124" y="486" width="42" height="26" rx="3" fill="#1f2937"/><text x="1145" y="504" font-size="16" text-anchor="middle" fill="#facc15">⚡</text>
+<rect x="1124" y="522" width="42" height="30" rx="3" fill="#f3efe8" stroke="#9a948a"/>
+<!-- šachta vodoměru -->
+<ellipse cx="640" cy="720" rx="54" ry="18" fill="#3d4654" stroke="#64748b" stroke-width="3"/>
+<ellipse cx="640" cy="716" rx="36" ry="10" fill="#4b5563"/>
+<!-- cesta a lampy -->
+<path d="M835 620 L 760 900 L 980 900 L 880 620 Z" fill="#cfc6b6" opacity=".55"/>
+<g><rect x="1000" y="650" width="8" height="60" fill="#111827"/><circle cx="1004" cy="646" r="10" fill="#ffd27a"/><circle cx="1004" cy="646" r="34" fill="url(#zare)"/>
+<rect x="700" y="650" width="8" height="60" fill="#111827"/><circle cx="704" cy="646" r="10" fill="#ffd27a"/><circle cx="704" cy="646" r="34" fill="url(#zare)"/></g>
+<!-- toky energie -->
+<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
+  {plyn_cara}
+  <path class="sc-tok" d="M 1180 515 C 1230 500, 1260 480, 1290 455" stroke="#facc15"/>
+  <path class="sc-tok" d="M 640 705 C 660 740, 680 770, 690 790" stroke="#38bdf8"/>
+</g>
+</svg>"""
+
+
+def svg_strkov():
+    """Ilustrace chalupy Strkov 9 (eternitová sedlová střecha, bílé zdi, dřevěný plot) za soumraku."""
+    import random
+    rnd = random.Random(9)
+    skvrny = "".join(
+        f'<polygon points="{x},{y - 9} {x + 9},{y} {x},{y + 9} {x - 9},{y}" fill="#b9bcb8" opacity="{rnd.uniform(.12, .3):.2f}"/>'
+        for x, y in [(rnd.randint(640, 1380), rnd.randint(250, 440)) for _ in range(26)])
+    latky = "".join(f'<rect x="{x}" y="664" width="13" height="{96 + (x % 3) * 4}" rx="2" fill="#5a3a2a"/>'
+                    for x in range(0, 690, 22))
+    latky += "".join(f'<rect x="{x}" y="664" width="13" height="{96 + (x % 3) * 4}" rx="2" fill="#5a3a2a"/>'
+                     for x in range(912, 1190, 22))
+    branka = "".join(f'<rect x="{x}" y="676" width="11" height="40" rx="2" fill="#6b4532"/>' for x in range(700, 900, 20))
+    pletivo = "".join(f'<path d="M{x} 690 L{x + 30} 760 M{x + 30} 690 L{x} 760" stroke="#7d8a7c" stroke-width="1.2" opacity=".55"/>'
+                      for x in range(1190, 1600, 30))
+    return f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="nebeS" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0d1734"/><stop offset=".42" stop-color="#2c3763"/>
+    <stop offset=".66" stop-color="#8a5272"/><stop offset=".82" stop-color="#ee8c52"/><stop offset="1" stop-color="#f7c07a"/>
+  </linearGradient>
+  <linearGradient id="okenkoS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c2"/><stop offset="1" stop-color="#f4a43a"/></linearGradient>
+  <linearGradient id="zedS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eeeae3"/><stop offset="1" stop-color="#c9c4bb"/></linearGradient>
+  <linearGradient id="stitS" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfd2d6"/><stop offset="1" stop-color="#e9e7e2"/></linearGradient>
+  <radialGradient id="svitS" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".6"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+  <pattern id="eternit" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="24" height="24" fill="#83878a"/><path d="M0 0 H24 M0 0 V24" stroke="#5f6366" stroke-width="2.2"/>
+    <path d="M2 2 H22" stroke="#9a9ea1" stroke-width="1" opacity=".6"/>
+  </pattern>
+  <pattern id="trava" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#2c4a2a"/>
+    <path d="M3 20 L5 12 M10 20 L11 13 M16 20 L15 11" stroke="#3f6a37" stroke-width="2"/></pattern>
+</defs>
+<rect width="1600" height="900" fill="url(#nebeS)"/>
+<g fill="#fff" opacity=".75"><circle cx="160" cy="70" r="1.6"/><circle cx="340" cy="130" r="1.2"/><circle cx="610" cy="60" r="1.4"/>
+<circle cx="1000" cy="85" r="1.2"/><circle cx="1240" cy="45" r="1.6"/><circle cx="1500" cy="110" r="1.1"/></g>
+<circle cx="1520" cy="105" r="30" fill="#fde9c4" opacity=".9"/>
+<!-- elektrické vedení -->
+<g stroke="#1f2533" stroke-width="2" fill="none" opacity=".8">
+  <path d="M 1062 238 Q 1330 200, 1600 150"/><path d="M 1062 246 Q 1330 215, 1600 170"/>
+  <path d="M 0 60 Q 400 130, 760 190"/>
+</g>
+<!-- sousední střechy -->
+<polygon points="150,470 230,360 420,360 420,470" fill="#a0522d" opacity=".85"/>
+<rect x="150" y="470" width="270" height="170" fill="#4a4652" opacity=".85"/>
+<polygon points="1470,480 1520,390 1600,390 1600,480" fill="#a0522d" opacity=".85"/>
+<rect x="1470" y="480" width="130" height="170" fill="#e2d6b8" opacity=".75"/>
+<ellipse cx="900" cy="520" rx="640" ry="230" fill="url(#svitS)" opacity=".45"/>
+<!-- štít -->
+<polygon points="458,205 588,470 588,645 372,645 372,482" fill="url(#stitS)"/>
+<rect x="420" y="320" width="30" height="52" fill="#2a2522"/><rect x="424" y="324" width="22" height="44" fill="url(#okenkoS)" opacity=".9"/>
+<!-- přední zeď -->
+<rect x="586" y="468" width="908" height="178" fill="url(#zedS)"/>
+<!-- střecha eternit -->
+<polygon points="458,198 1362,240 1502,470 588,470" fill="url(#eternit)"/>
+{skvrny}
+<polygon points="458,198 1362,240 1370,252 466,212" fill="#4b4f53"/>
+<line x1="458" y1="198" x2="352" y2="486" stroke="#3b302a" stroke-width="10" stroke-linecap="round"/>
+<line x1="1362" y1="240" x2="1502" y2="470" stroke="#3b302a" stroke-width="8" stroke-linecap="round"/>
+<rect x="586" y="466" width="918" height="9" fill="#3d4044"/><rect x="586" y="475" width="908" height="7" fill="#000" opacity=".18"/>
+<!-- anténa a střešník -->
+<g stroke="#4b5563" stroke-width="3" fill="none"><line x1="760" y1="212" x2="760" y2="120"/>
+<line x1="712" y1="128" x2="808" y2="128"/><line x1="722" y1="142" x2="798" y2="142"/><line x1="790" y1="118" x2="805" y2="104"/></g>
+<line x1="1062" y1="388" x2="1056" y2="238" stroke="#7c4a2d" stroke-width="7"/>
+<g fill="#d6d3cd"><rect x="1046" y="236" width="10" height="6" rx="2"/><rect x="1062" y="244" width="10" height="6" rx="2"/></g>
+<!-- okna a dveře -->
+<rect x="684" y="520" width="66" height="78" fill="#2a2522"/><rect x="690" y="526" width="54" height="66" fill="url(#okenkoS)"/>
+<line x1="717" y1="526" x2="717" y2="592" stroke="#2a2522" stroke-width="3"/>
+<rect x="872" y="504" width="50" height="142" fill="#4a2f22"/><rect x="878" y="512" width="38" height="56" fill="#f4c27a" opacity=".55"/>
+<circle cx="900" cy="490" r="6" fill="#1c1c22"/><circle cx="900" cy="490" r="30" fill="url(#svitS)"/>
+<rect x="1110" y="506" width="96" height="70" fill="#5a3b2a"/><rect x="1116" y="512" width="84" height="58" fill="url(#okenkoS)"/>
+<line x1="1158" y1="512" x2="1158" y2="570" stroke="#5a3b2a" stroke-width="4"/><line x1="1116" y1="541" x2="1200" y2="541" stroke="#5a3b2a" stroke-width="3"/>
+<rect x="1262" y="502" width="26" height="20" fill="#2a2522"/>
+<rect x="1310" y="508" width="104" height="138" fill="#3a2a22"/>
+<g stroke="#2a1d17" stroke-width="2">{''.join(f'<line x1="{x}" y1="508" x2="{x}" y2="646"/>' for x in range(1322, 1414, 13))}</g>
+<!-- červený přístřešek vlevo -->
+<polygon points="190,508 640,470 652,488 205,528" fill="#9a3a2a"/>
+<polygon points="205,528 652,488 652,494 205,536" fill="#6e2a1f"/>
+<g fill="#5a3a2a"><rect x="300" y="520" width="9" height="128"/><rect x="560" y="498" width="9" height="150"/></g>
+<rect x="580" y="500" width="70" height="146" fill="#000" opacity=".18"/>
+<!-- zeleň -->
+<g><ellipse cx="230" cy="600" rx="90" ry="60" fill="#6b5a2a"/><ellipse cx="300" cy="610" rx="70" ry="45" fill="#8a6a2c"/>
+<ellipse cx="190" cy="560" rx="60" ry="70" fill="#4d5a2a"/><ellipse cx="470" cy="640" rx="40" ry="26" fill="#3f6a37"/>
+<ellipse cx="1520" cy="640" rx="60" ry="40" fill="#3f6a37"/></g>
+<!-- tráva a plot -->
+<rect x="0" y="640" width="1600" height="150" fill="url(#trava)"/>
+{latky}
+<rect x="0" y="684" width="690" height="6" fill="#4a2f22"/><rect x="0" y="736" width="690" height="6" fill="#4a2f22"/>
+<rect x="912" y="684" width="278" height="6" fill="#4a2f22"/><rect x="912" y="736" width="278" height="6" fill="#4a2f22"/>
+<rect x="690" y="656" width="12" height="114" fill="#3e281d"/><rect x="898" y="656" width="12" height="114" fill="#3e281d"/>
+{branka}
+<rect x="702" y="716" width="98" height="52" fill="#7a4a35" stroke="#5a3424" stroke-width="3"/>
+<rect x="800" y="716" width="98" height="52" fill="#7a4a35" stroke="#5a3424" stroke-width="3"/>
+<rect x="702" y="672" width="196" height="6" fill="#4a2f22"/>
+<rect x="772" y="690" width="30" height="30" rx="4" fill="#3b3f46"/><rect x="777" y="698" width="20" height="4" fill="#111827"/>
+<g stroke="#5b6b5a" stroke-width="5">{''.join(f'<line x1="{x}" y1="680" x2="{x}" y2="770"/>' for x in range(1190, 1600, 120))}</g>
+<rect x="1190" y="688" width="410" height="74" fill="#6b7a6a" opacity=".12"/>{pletivo}
+<line x1="1190" y1="688" x2="1600" y2="688" stroke="#7d8a7c" stroke-width="2"/>
+<!-- cesta -->
+<rect x="0" y="770" width="1600" height="26" fill="#3a5a33"/>
+<rect x="0" y="796" width="1600" height="104" fill="#4b5058"/>
+<rect x="0" y="796" width="1600" height="4" fill="#5f646c"/>
+<ellipse cx="930" cy="842" rx="38" ry="10" fill="#3b4048" stroke="#94a3b8" stroke-width="2"/><ellipse cx="930" cy="840" rx="24" ry="5" fill="#64748b"/>
+<!-- toky energie -->
+<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
+  <path class="sc-tok" d="M 1060 232 C 1080 190, 1095 160, 1100 130" stroke="#facc15"/>
+  <path class="sc-tok" d="M 892 840 C 870 838, 860 832, 852 826" stroke="#38bdf8"/>
+</g>
+</svg>"""
+
+
 def svg_pruhony():
     """Ilustrace domu V Průhonech 384 (bungalov s valbovou střechou, cihlový plot) za soumraku."""
     sloupky = [60, 460, 760, 1040, 1150, 1460]
@@ -1336,58 +1590,7 @@ def scena_domu():
   {dnes_html}
 </div>""".splitlines())))
 
-    plyn_cara = ('<path class="sc-tok" d="M 820 205 C 840 180, 850 165, 870 150" stroke="#f97316"/>' if "plyn" in PORADI else "")
-    svg = svg_pruhony() if MISTO_KLIC == "pruhony" else f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-<defs>
-  <linearGradient id="nebe" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#0b1430"/><stop offset=".45" stop-color="#27325a"/>
-    <stop offset=".72" stop-color="#7a4a6b"/><stop offset=".9" stop-color="#f08a4b"/><stop offset="1" stop-color="#f6b26b"/>
-  </linearGradient>
-  <linearGradient id="okno" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a3"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
-  <linearGradient id="travnik" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3b2b"/><stop offset="1" stop-color="#0b1a14"/></linearGradient>
-  <radialGradient id="zare" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
-  <linearGradient id="zed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9e4dc"/><stop offset="1" stop-color="#b9b2a7"/></linearGradient>
-</defs>
-<rect width="1600" height="900" fill="url(#nebe)"/>
-<g fill="#fff" opacity=".7"><circle cx="140" cy="80" r="1.6"/><circle cx="320" cy="140" r="1.2"/><circle cx="560" cy="60" r="1.4"/>
-<circle cx="980" cy="90" r="1.3"/><circle cx="1220" cy="50" r="1.6"/><circle cx="1420" cy="120" r="1.1"/><circle cx="760" cy="130" r="1"/></g>
-<circle cx="1330" cy="150" r="34" fill="#fde9c4" opacity=".9"/>
-<path d="M0 560 C 200 500, 360 520, 520 540 S 900 500, 1100 530 S 1450 510, 1600 540 V 900 H 0 Z" fill="#1f2a44" opacity=".9"/>
-<path d="M0 600 C 260 570, 520 590, 800 600 S 1300 580, 1600 600 V 900 H 0 Z" fill="url(#travnik)"/>
-<!-- stromy -->
-<g fill="#0e1b17"><ellipse cx="170" cy="470" rx="110" ry="150"/><rect x="160" y="560" width="18" height="80"/>
-<ellipse cx="1470" cy="490" rx="90" ry="130"/><rect x="1462" y="570" width="16" height="70"/></g>
-<!-- dům -->
-<ellipse cx="800" cy="460" rx="430" ry="260" fill="url(#zare)"/>
-<polygon points="470,330 800,160 1130,330" fill="#2b2f38"/>
-<polygon points="490,330 800,175 1110,330" fill="#3a3f4b"/>
-<rect x="840" y="150" width="46" height="110" fill="#4b4f5b"/><rect x="834" y="142" width="58" height="14" fill="#5a5f6b"/>
-<rect x="505" y="330" width="590" height="290" fill="url(#zed)"/>
-<rect x="505" y="330" width="590" height="16" fill="#00000022"/>
-<rect x="545" y="380" width="200" height="200" rx="4" fill="url(#okno)"/>
-<line x1="645" y1="380" x2="645" y2="580" stroke="#3a3f4b" stroke-width="6"/>
-<rect x="790" y="380" width="120" height="110" rx="4" fill="url(#okno)"/>
-<rect x="945" y="380" width="110" height="110" rx="4" fill="#ffd27a" opacity=".85"/>
-<rect x="795" y="520" width="80" height="100" rx="3" fill="#3a3f4b"/><circle cx="862" cy="572" r="4" fill="#d4a24a"/>
-<g fill="#2b2f38" opacity=".55"><rect x="560" y="470" width="40" height="70" rx="6"/><rect x="660" y="490" width="60" height="30" rx="6"/></g>
-<!-- skříň elektroměru a plynoměru -->
-<rect x="1110" y="470" width="70" height="95" rx="6" fill="#d8d3ca" stroke="#9a948a" stroke-width="3"/>
-<rect x="1124" y="486" width="42" height="26" rx="3" fill="#1f2937"/><text x="1145" y="504" font-size="16" text-anchor="middle" fill="#facc15">⚡</text>
-<rect x="1124" y="522" width="42" height="30" rx="3" fill="#f3efe8" stroke="#9a948a"/>
-<!-- šachta vodoměru -->
-<ellipse cx="640" cy="720" rx="54" ry="18" fill="#3d4654" stroke="#64748b" stroke-width="3"/>
-<ellipse cx="640" cy="716" rx="36" ry="10" fill="#4b5563"/>
-<!-- cesta a lampy -->
-<path d="M835 620 L 760 900 L 980 900 L 880 620 Z" fill="#cfc6b6" opacity=".55"/>
-<g><rect x="1000" y="650" width="8" height="60" fill="#111827"/><circle cx="1004" cy="646" r="10" fill="#ffd27a"/><circle cx="1004" cy="646" r="34" fill="url(#zare)"/>
-<rect x="700" y="650" width="8" height="60" fill="#111827"/><circle cx="704" cy="646" r="10" fill="#ffd27a"/><circle cx="704" cy="646" r="34" fill="url(#zare)"/></g>
-<!-- toky energie -->
-<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
-  {plyn_cara}
-  <path class="sc-tok" d="M 1180 515 C 1230 500, 1260 480, 1290 455" stroke="#facc15"/>
-  <path class="sc-tok" d="M 640 705 C 660 740, 680 770, 690 790" stroke="#38bdf8"/>
-</g>
-</svg>"""
+    svg = {"pruhony": svg_pruhony, "strkov": svg_strkov}.get(MISTO_KLIC, svg_obecny)()
     souhrn_html = "".join(souhrn) or '<div class="sc-r"><span>Zatím málo odečtů</span></div>'
     html = f"""
 <div class="scena scena-{MISTO_KLIC}">

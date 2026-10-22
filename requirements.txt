@@ -5,3 +5,4 @@ st-gsheets-connection
 qrcode[pil]
 fpdf2
 matplotlib
+resvg-py
