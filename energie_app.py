@@ -148,16 +148,19 @@ PRE_EXTRA3 = {
     "cena_plati": "PRE PROUD EXTRA 3 – fixace do 30. 6. 2029 (sleva 2 000 Kč)",
     "konec_smlouvy": "2029-06-30", "konec_popis": "Fixace ceny končí",
 }
+# Voda Strkov: přípojka na vodovod VS Chrudim cca 08/2026 (do té doby jen studna). Platí se JEN vodné (bez stočného),
+# cena stejná jako Průhony 2026: vodné 53,77 Kč/m³ bez DPH → 60,22 s 12 % DPH; pevná složka 2,38 Kč/den → 81,08 Kč/měs.
+STRKOV_VODA = {"dodavatel": "VS Chrudim", "cena_za_kwh": 60.2224, "kwh_na_jednotku": 1, "mesicni_platy": 81.08,
+    "zaloha": 300, "obdobi_od": "2026-08-22", "stav_obdobi_od": 0, "obdobi_do": "2027-08-21", "zaplaceno": 0,
+    "zaplaceno_k_datu": "2026-08-22", "den_splatnosti": 15, "rezerva_pct": 0,
+    "cena_plati": "VS Chrudim 2026 – jen vodné 53,77 Kč/m³ + DPH (bez stočného), pevná složka 2,38 Kč/den",
+    "ucet": "1092006008/5500", "vs": "", "obchodni_kwh": 0, "obchodni_mesic": 0, "konec_smlouvy": "",
+    "konec_popis": "", "cena_nt_kwh": 0, "zalohy_do": ""}
 STARA_CENA_STRKOV = 6.65661  # ceník PRE 2025 – pokud ho tabulka ještě má, jednou se nahradí novou smlouvou
 STRKOV_TARIFY = [
     {"energie": "elektrina", "dodavatel": "PRE", **PRE_EXTRA3, **STRKOV_OBDOBI, "kwh_na_jednotku": 1,
      "rezerva_pct": 0, "ucet": "19-2784000277/0100", "vs": "21867837"},
-    {"energie": "voda", "dodavatel": "doplň", "cena_za_kwh": 0, "kwh_na_jednotku": 1,
-     "mesicni_platy": 0, "zaloha": 0, "obdobi_od": "2026-01-01", "stav_obdobi_od": 0,
-     "obdobi_do": "2026-12-31", "zaplaceno": 0, "zaplaceno_k_datu": "2026-01-01",
-     "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Doplň z faktury za vodu",
-     "ucet": "", "vs": "", "obchodni_kwh": 0, "obchodni_mesic": 0,
-     "konec_smlouvy": "", "konec_popis": "", "cena_nt_kwh": 0},
+    {"energie": "voda", **STRKOV_VODA},
 ]
 
 MISTA = {
@@ -308,6 +311,16 @@ def nacti_data(ul, misto):
                 tarify.loc[odhad_obdobi, k_] = h_
             ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
             for c in ["stav_obdobi_od", "zaloha", "den_splatnosti", "zaplaceno"]:
+                tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
+        voda_prazdna = (tarify["energie"] == "voda") & (tarify["cena_za_kwh"] == 0) \
+            & (tarify["dodavatel"].isin(["doplň", ""]))
+        if voda_prazdna.any():
+            for k_, h_ in STRKOV_VODA.items():
+                tarify[k_] = tarify[k_].astype(object)
+                tarify.loc[voda_prazdna, k_] = h_
+            ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
+            for c in ["cena_za_kwh", "kwh_na_jednotku", "mesicni_platy", "zaloha", "stav_obdobi_od", "zaplaceno",
+                      "den_splatnosti", "rezerva_pct", "obchodni_kwh", "obchodni_mesic", "cena_nt_kwh"]:
                 tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
 
     odecty = odecty.copy()
