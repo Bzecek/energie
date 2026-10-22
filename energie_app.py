@@ -1337,7 +1337,7 @@ if st.query_params.get("pwa") == "1":
     st.session_state["pwa"] = True
 if st.session_state.get("pwa"):
     # v nainstalované appce je spodní okraj obrazovky o kousek níž (schovaná lišta Streamlit Cloudu)
-    st.markdown("<style>:root { --lista-navic: 14px; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>:root { --lista-navic: 38px; }</style>", unsafe_allow_html=True)
 
 with st.container(key="mobil_mista", horizontal=True):
     for klic, mm in MISTA.items():
