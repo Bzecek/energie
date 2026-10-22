@@ -16,8 +16,10 @@
   :root { --bg: #0b1220; --fg: #e2e8f0; --muted: #94a3b8; --zelena: #10b981; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-  #appka { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg);
-    padding-top: env(safe-area-inset-top); box-sizing: border-box; }
+  /* Streamlit Cloud kolem vložené appky kreslí tenký rámeček a dole lištu „Built with Streamlit“.
+     Rámeček appky proto o kousek zvětšíme, aby okraj i lišta skončily mimo obrazovku. */
+  #appka { position: fixed; top: -4px; left: -4px; width: calc(100% + 8px); height: calc(100% + 56px);
+    border: 0; background: var(--bg); }
   #uvod { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 18px; background: radial-gradient(120% 80% at 0% 0%, rgba(16,185,129,.25), transparent 60%),
     radial-gradient(120% 80% at 100% 100%, rgba(249,115,22,.22), transparent 60%), var(--bg);
@@ -50,10 +52,27 @@
   // ⬇⬇⬇ SEM VLOŽ ADRESU SVÉ APPKY ZE STREAMLITU (bez lomítka na konci) ⬇⬇⬇
   const APP_URL = "https://energie-doma.streamlit.app";
 
+  // zapamatované přihlášení (otisk hesla, ne heslo samotné) – jen v tomto telefonu
+  const KLIC = "energie-klic";
+  function nactiKlic() { try { return localStorage.getItem(KLIC); } catch (e) { return null; } }
+  function ulozKlic(k) { try { localStorage.setItem(KLIC, k); } catch (e) {} }
+  function smazKlic() { try { localStorage.removeItem(KLIC); } catch (e) {} }
+  window.addEventListener("message", (e) => {
+    if (typeof e.data !== "string") return;
+    if (e.data.startsWith("energie-klic:")) ulozKlic(e.data.slice("energie-klic:".length));
+    if (e.data === "energie-zapomen-prihlaseni") smazKlic();
+    if (e.data.startsWith("energie-misto:")) { try { localStorage.setItem("energie-misto", e.data.slice(14)); } catch (x) {} }
+  });
+
   // parametry z odkazu (např. ?misto=strkov ze zkratky na ikoně) předáme appce
   const parametry = new URLSearchParams(location.search);
   parametry.set("embed", "true");
   parametry.set("embed_options", "dark_theme");
+  let posledniMisto = null;
+  try { posledniMisto = localStorage.getItem("energie-misto"); } catch (e) {}
+  if (!parametry.has("misto") && posledniMisto) parametry.set("misto", posledniMisto);
+  const ulozeny = nactiKlic();
+  if (ulozeny) parametry.set("klic", ulozeny);
   const cil = APP_URL + "/?" + parametry.toString();
   document.getElementById("odkaz").href = APP_URL + "/?" + new URLSearchParams(location.search).toString();
 

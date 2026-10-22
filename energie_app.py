@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import json
 import os
@@ -834,7 +835,7 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 html, body, [class*="css"], .stMarkdown, .stButton button, input, textarea {{ font-family: 'Inter', sans-serif !important; }}
-.block-container {{ padding-top: 1rem; padding-bottom: 2rem; max-width: 1120px; }}
+.block-container {{ padding-top: 1rem; padding-bottom: 5rem; max-width: 1120px; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 
 .hero {{ position: relative; overflow: hidden; border-radius: 22px; padding: 22px 22px 18px;
@@ -1068,8 +1069,32 @@ def spravne_heslo():
         return None
 
 
+def klic_z_hesla(heslo):
+    """Otisk hesla, který si pamatuje nainstalovaná appka v telefonu (heslo samo se nikde neukládá)."""
+    return hashlib.sha256(("energie:" + str(heslo)).encode("utf-8")).hexdigest()
+
+
+def zprava_obalu(text):
+    """Pošle zprávu obalu nainstalované appky (GitHub Pages), např. ať zapomene uložené přihlášení."""
+    import streamlit.components.v1 as components
+    components.html(f"<script>try{{window.top.postMessage({json.dumps(text)}, '*');}}catch(e){{}}</script>", height=0)
+
+
 _heslo = spravne_heslo()
 if _heslo and not st.session_state.get("prihlasen"):
+    _klic = st.query_params.get("klic")
+    if _klic:
+        if hmac.compare_digest(str(_klic), klic_z_hesla(_heslo)):
+            st.session_state["prihlasen"] = True
+        else:
+            st.session_state["spatny_klic"] = True
+        del st.query_params["klic"]
+if _heslo and not st.session_state.get("prihlasen"):
+    if st.session_state.pop("spatny_klic", False):
+        zprava_obalu("energie-zapomen-prihlaseni")
+        st.warning("Uložené přihlášení už neplatí (heslo se změnilo) – zadej heslo znovu.")
+    if st.session_state.pop("odhlaseno", False):
+        zprava_obalu("energie-zapomen-prihlaseni")
     st.markdown("""
 <div class="hero"><h1>⚡ Energie doma</h1>
 <div class="sub">Pro vstup zadej heslo.</div></div>""", unsafe_allow_html=True)
@@ -1078,6 +1103,7 @@ if _heslo and not st.session_state.get("prihlasen"):
         if st.form_submit_button("Vstoupit", type="primary", width="stretch"):
             if hmac.compare_digest(zadane.encode(), str(_heslo).encode()):
                 st.session_state["prihlasen"] = True
+                st.session_state["ulozit_klic"] = True
                 st.rerun()
             st.error("Špatné heslo.")
     st.stop()
@@ -1108,8 +1134,14 @@ if "misto" not in st.session_state:
                 st.rerun()
     st.stop()
 
+if _heslo and st.session_state.pop("ulozit_klic", False):
+    zprava_obalu("energie-klic:" + klic_z_hesla(_heslo))
+
 MISTO_KLIC = st.session_state["misto"]
 MISTO = MISTA[MISTO_KLIC]
+if st.session_state.get("misto_ohlaseno") != MISTO_KLIC:   # nainstalovaná appka si pamatuje poslední místo
+    zprava_obalu("energie-misto:" + MISTO_KLIC)
+    st.session_state["misto_ohlaseno"] = MISTO_KLIC
 PORADI = MISTO["energie"]
 L_ODECTY, L_TARIFY = MISTO["list_odecty"], MISTO["list_tarify"]
 
@@ -1233,8 +1265,9 @@ with st.sidebar:
   <div><div class="sb-jmeno">{AUTOR}</div><div class="sb-role">{MISTO['nazev']} · {MISTO['obec']}</div></div>
 </div>""", unsafe_allow_html=True)
     if spravne_heslo() and st.button("↪  Odhlásit", key="odhlasit", width="stretch"):
-        for k in ["prihlasen", "misto", "stranka"]:
+        for k in ["prihlasen", "misto", "stranka", "misto_ohlaseno"]:
             st.session_state.pop(k, None)
+        st.session_state["odhlaseno"] = True
         st.query_params.clear()
         st.rerun()
 
