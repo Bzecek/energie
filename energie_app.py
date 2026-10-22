@@ -124,14 +124,21 @@ STRKOV_ODECTY = [  # (datum, energie, stav celkem, typ, poznámka, měřidlo, st
     ("2025-02-01", "elektrina", 347, "odečet", "Faktura PRE · VT 148 + NT 199", "2480513295", 199),
     ("2025-06-21", "elektrina", 1449, "odečet", "Faktura PRE · VT 390 + NT 1059", "2480513295", 1059),
 ]
+# Smlouva PRE SoSSE/0008552627, produkt PRE PROUD EXTRA 3 07/2026 (dodávka od 22. 7. 2026, fixace do 30. 6. 2029),
+# distribuce ČEZ Distribuce, D25d, jistič 3x25 A. Ceny vč. DPH.
+PRE_EXTRA3 = {
+    "cena_za_kwh": 5.80194, "cena_nt_kwh": 2.97544,          # celková cena VT / NT
+    "mesicni_platy": 497.15,                                # 156,09 OM + 325,49 jistič + 15,57 nesíťová infrastruktura
+    "obchodni_kwh": 2.65467, "obchodni_mesic": 156.09,      # obchodní část (VT 2,8435 / NT 2,6015, vážený průměr)
+    "obdobi_od": "2026-07-22", "obdobi_do": "2027-07-21", "zaplaceno_k_datu": "2026-07-22",
+    "cena_plati": "PRE PROUD EXTRA 3 – fixace do 30. 6. 2029 (sleva 2 000 Kč)",
+    "konec_smlouvy": "2029-06-30", "konec_popis": "Fixace ceny končí",
+}
+STARA_CENA_STRKOV = 6.65661  # ceník PRE 2025 – pokud ho tabulka ještě má, jednou se nahradí novou smlouvou
 STRKOV_TARIFY = [
-    {"energie": "elektrina", "dodavatel": "PRE", "cena_za_kwh": 6.65661, "kwh_na_jednotku": 1,
-     "mesicni_platy": 443.88, "zaloha": 1730, "obdobi_od": "2026-06-22", "stav_obdobi_od": 0,
-     "obdobi_do": "2027-06-21", "zaplaceno": 0, "zaplaceno_k_datu": "2026-06-22",
-     "den_splatnosti": 11, "rezerva_pct": 0, "cena_plati": "Ceník PRE 2025 – aktualizuj (změna 30. 9. 2026)",
-     "ucet": "19-2784000277/0100", "vs": "21867837",
-     "obchodni_kwh": 2.88457, "obchodni_mesic": 143.99,
-     "konec_smlouvy": "2026-09-30", "konec_popis": "Změna ceny / produktu PRE", "cena_nt_kwh": 3.92067},
+    {"energie": "elektrina", "dodavatel": "PRE", **PRE_EXTRA3, "kwh_na_jednotku": 1,
+     "zaloha": 1730, "stav_obdobi_od": 0, "zaplaceno": 0, "den_splatnosti": 11, "rezerva_pct": 0,
+     "ucet": "19-2784000277/0100", "vs": "21867837"},
     {"energie": "voda", "dodavatel": "doplň", "cena_za_kwh": 0, "kwh_na_jednotku": 1,
      "mesicni_platy": 0, "zaloha": 0, "obdobi_od": "2026-01-01", "stav_obdobi_od": 0,
      "obdobi_do": "2026-12-31", "zaplaceno": 0, "zaplaceno_k_datu": "2026-01-01",
@@ -258,6 +265,15 @@ def nacti_data(ul, misto):
               "den_splatnosti", "rezerva_pct", "obchodni_kwh", "obchodni_mesic", "cena_nt_kwh"]:
         tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
     tarify["den_splatnosti"] = tarify["den_splatnosti"].replace(0, 15)
+    if misto == "strkov":
+        stara = (tarify["energie"] == "elektrina") & ((tarify["cena_za_kwh"] - STARA_CENA_STRKOV).abs() < 1e-4)
+        if stara.any():
+            for k_, h_ in PRE_EXTRA3.items():
+                tarify[k_] = tarify[k_].astype(object)
+                tarify.loc[stara, k_] = h_
+            ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
+            for c in ["cena_za_kwh", "cena_nt_kwh", "mesicni_platy", "obchodni_kwh", "obchodni_mesic"]:
+                tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
 
     odecty = odecty.copy()
     odecty["id"] = odecty["id"].astype(str)
@@ -1118,8 +1134,12 @@ def klic_z_hesla(heslo):
 
 def zprava_obalu(text):
     """Pošle zprávu obalu nainstalované appky (GitHub Pages), např. ať zapomene uložené přihlášení."""
-    import streamlit.components.v1 as components
-    components.html(f"<script>try{{window.top.postMessage({json.dumps(text)}, '*');}}catch(e){{}}</script>", height=0)
+    kod = f"<script>try{{window.top.postMessage({json.dumps(text)}, '*');}}catch(e){{}}</script>"
+    if hasattr(st, "iframe"):
+        st.iframe(kod, height=1)
+    else:  # starší Streamlit
+        import streamlit.components.v1 as components
+        components.html(kod, height=0)
 
 
 _heslo = spravne_heslo()
