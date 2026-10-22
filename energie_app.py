@@ -747,7 +747,7 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 html, body, [class*="css"], .stMarkdown, .stButton button, input, textarea {{ font-family: 'Inter', sans-serif !important; }}
-.block-container {{ padding-top: 1rem; padding-bottom: 2rem; max-width: 820px; }}
+.block-container {{ padding-top: 1rem; padding-bottom: 2rem; max-width: 1120px; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 
 .hero {{ position: relative; overflow: hidden; border-radius: 22px; padding: 22px 22px 18px;
@@ -810,6 +810,77 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 div[class*="st-key-prepni_"] button {{ min-height: 3rem; border-radius: 14px; font-weight: 600; }}
 div[class*="st-key-prepni_"] button:disabled {{ background: rgba(16,185,129,.18); border: 1px solid {BARVA_PRIMARNI};
   color: #6ee7b7; opacity: 1; cursor: default; }}
+section[data-testid="stSidebar"] {{ background: #0c1424; border-right: 1px solid rgba(148,163,184,.12); }}
+section[data-testid="stSidebar"] .block-container, section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {{ padding-top: .4rem; }}
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {{ gap: .15rem; }}
+.sb-logo {{ font-size: 1.45rem; font-weight: 800; letter-spacing: -.02em; color: #f8fafc; padding: 6px 6px 10px;
+  border-bottom: 1px solid rgba(148,163,184,.12); margin-bottom: 4px; }}
+.sb-logo-ikona {{ display: inline-flex; width: 34px; height: 34px; border-radius: 10px; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #10b981, #f97316); margin-right: 10px; font-size: 1.05rem; vertical-align: middle; }}
+.sb-logo-tecka {{ color: #10b981; }}
+.sb-sekce {{ font-size: .66rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #64748b;
+  margin: 0 8px; padding: 14px 0 4px; line-height: 1.2; }}
+section[data-testid="stSidebar"] [data-testid="stElementContainer"] {{ margin: 0; }}
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{ margin: 0; }}
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+section[data-testid="stSidebar"] button {{ min-height: 2.25rem !important; height: 2.25rem; padding-top: 0; padding-bottom: 0; }}
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{ gap: 2px; }}
+div[class*="st-key-menu_"] button, div[class*="st-key-prepni_"] button, div.st-key-odhlasit button {{
+  justify-content: flex-start; background: transparent; border: 1px solid transparent; color: #cbd5e1;
+  border-radius: 10px; min-height: 2.3rem; padding: 0 12px; font-weight: 500; box-shadow: none; }}
+div[class*="st-key-menu_"] button p, div[class*="st-key-prepni_"] button p {{ font-size: .93rem; }}
+div[class*="st-key-menu_"] button > div, div[class*="st-key-prepni_"] button > div {{ justify-content: flex-start; width: 100%; }}
+div[class*="st-key-menu_"] button:hover, div[class*="st-key-prepni_"] button:hover {{ background: rgba(148,163,184,.08); color: #f1f5f9; border-color: transparent; }}
+div[class*="st-key-menu_"] button[kind="primary"], div[class*="st-key-menu_"] button[data-testid="stBaseButton-primary"] {{
+  background: rgba(16,185,129,.14); color: #6ee7b7; box-shadow: inset 3px 0 0 #10b981; }}
+div[class*="st-key-prepni_"] button:disabled {{ background: rgba(16,185,129,.10); border: 1px solid rgba(16,185,129,.45);
+  color: #6ee7b7; opacity: 1; cursor: default; }}
+.sb-uzivatel {{ display: flex; align-items: center; gap: 10px; margin: 22px 4px 6px; padding: 10px;
+  border-top: 1px solid rgba(148,163,184,.12); }}
+.sb-avatar {{ width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #052e1f; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; }}
+.sb-jmeno {{ font-weight: 600; color: #f1f5f9; font-size: .9rem; }}
+.sb-role {{ font-size: .75rem; color: #64748b; }}
+div.st-key-odhlasit button {{ color: #94a3b8; font-size: .85rem; min-height: 2rem; }}
+
+.stranka-nadpis {{ font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; color: #f8fafc; margin: 2px 0 0; }}
+.stranka-pod {{ font-size: .88rem; color: {BARVA_TEXT_TLUMENY}; margin: 2px 0 16px; }}
+.platby-velke {{ margin: 6px 0 12px; }}
+
+.scena {{ position: relative; aspect-ratio: 16 / 9; border-radius: 22px; overflow: hidden; margin: 6px 0 16px;
+  border: 1px solid rgba(148,163,184,.18); box-shadow: 0 20px 50px rgba(0,0,0,.35); }}
+.sc-svg {{ position: absolute; inset: 0; width: 100%; height: 100%; }}
+.sc-tok {{ animation: tok 1.4s linear infinite; }}
+@keyframes tok {{ to {{ stroke-dashoffset: -24; }} }}
+@media (prefers-reduced-motion: reduce) {{ .sc-tok {{ animation: none; }} }}
+.sc-karta {{ position: absolute; background: rgba(15,23,42,.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148,163,184,.28); border-radius: 12px; padding: 8px 12px; color: #f1f5f9; min-width: 9.5rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); }}
+.sc-karta[style*="--acc"] {{ border-top: 2px solid var(--acc); }}
+.sc-hlava {{ font-size: .74rem; font-weight: 600; color: #cbd5e1; }}
+.sc-hodnota {{ font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }}
+.sc-pod {{ font-size: .7rem; color: #94a3b8; margin-top: 1px; }}
+.sc-teplota {{ font-size: 1.25rem; font-weight: 800; margin-top: 2px; }}
+.sc-pocasi {{ left: 2.5%; top: 4%; }}
+.sc-plyn {{ left: 56%; top: 6%; }}
+.sc-elektrina {{ left: 79%; top: 38%; }}
+.sc-voda {{ left: 25%; bottom: 5%; }}
+.sc-souhrn {{ left: 2.5%; top: 21%; min-width: 12.5rem; }}
+.scena-pruhony .sc-plyn {{ left: 63%; top: 5%; }}
+.scena-pruhony .sc-elektrina {{ left: auto; right: 2.5%; top: 50%; }}
+.scena-pruhony .sc-voda {{ left: 33%; bottom: 4%; }}
+.sc-r {{ display: flex; justify-content: space-between; gap: 14px; font-size: .74rem; color: #cbd5e1; margin-top: 4px; }}
+.sc-r b {{ color: #f8fafc; font-variant-numeric: tabular-nums; }}
+.sc-r2 {{ margin-top: 0; color: #94a3b8; }}
+.sc-r2 b {{ color: #94a3b8; font-weight: 500; }}
+.sc-celkem {{ border-top: 1px solid rgba(148,163,184,.25); padding-top: 5px; margin-top: 6px; font-weight: 700; }}
+@media (max-width: 760px) {{
+  .scena {{ aspect-ratio: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 250px 10px 10px; }}
+  .sc-svg {{ height: 260px; }}
+  .scena .sc-karta {{ position: relative; left: auto; right: auto; top: auto; bottom: auto; min-width: 0; }}
+  .sc-souhrn {{ grid-column: span 2; }}
+  .sc-tok {{ display: none; }}
+}}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -899,17 +970,6 @@ MISTO = MISTA[MISTO_KLIC]
 PORADI = MISTO["energie"]
 L_ODECTY, L_TARIFY = MISTO["list_odecty"], MISTO["list_tarify"]
 
-sloupce_mist = st.columns(len(MISTA), gap="small")
-for sl, (klic, mm) in zip(sloupce_mist, MISTA.items()):
-    aktivni = klic == MISTO_KLIC
-    if sl.button(f"{mm['ikona']} {mm['nazev']}", key=f"prepni_{klic}", width="stretch",
-                 type="primary" if aktivni else "secondary", disabled=aktivni):
-        st.session_state["misto"] = klic
-        st.query_params["misto"] = klic
-        for k in ["upravuji", "mazu", "pdf_data"]:
-            st.session_state.pop(k, None)
-        st.rerun()
-
 ul = Uloziste()
 odecty, tarify = nacti_data(ul, MISTO_KLIC)
 dnes = date.today()
@@ -987,6 +1047,321 @@ bilance_celkem = sum(v["bilance"] for v in platne)
 mesicne_celkem = sum(v["mesicne"] for v in platne)
 barva_bil = BARVA_OK if bilance_celkem >= 0 else BARVA_ZLE
 
+# ─────────────────────────────────────────────
+# BOČNÍ MENU
+# ─────────────────────────────────────────────
+MENU = [
+    ("Přehled", [("prehled", "🏠", "Přehled"), ("platby", "💳", "Zálohy a platby")]),
+    ("Energie", [(e, ENERGIE[e]["ikona"], ENERGIE[e]["nazev"]) for e in PORADI]),
+    ("Nástroje", [("spotrebice", "🔌", "Co kolik stojí"), ("nabidky", "💡", "Porovnat nabídky"),
+                  ("pdf", "📄", "Roční přehled PDF")]),
+    ("Správa", [("historie", "📋", "Historie odečtů"), ("nastaveni", "⚙️", "Ceny a zálohy")]),
+]
+_platne_stranky = [p[0] for _, pol in MENU for p in pol]
+if st.session_state.get("stranka") not in _platne_stranky:
+    st.session_state["stranka"] = "prehled"
+
+with st.sidebar:
+    st.markdown('<div class="sb-logo"><span class="sb-logo-ikona">⚡</span>Energie<span class="sb-logo-tecka">.</span></div>',
+                unsafe_allow_html=True)
+    st.markdown('<div class="sb-sekce">Odběrné místo</div>', unsafe_allow_html=True)
+    for klic, mm in MISTA.items():
+        aktivni = klic == MISTO_KLIC
+        if st.button(f"{mm['ikona']}  {mm['nazev']}", key=f"prepni_{klic}", width="stretch",
+                     type="primary" if aktivni else "secondary", disabled=aktivni):
+            st.session_state["misto"] = klic
+            st.query_params["misto"] = klic
+            for k in ["upravuji", "mazu", "pdf_data"]:
+                st.session_state.pop(k, None)
+            st.rerun()
+    for sekce, polozky in MENU:
+        st.markdown(f'<div class="sb-sekce">{sekce}</div>', unsafe_allow_html=True)
+        for pid, ik, nazev in polozky:
+            aktivni = st.session_state["stranka"] == pid
+            if st.button(f"{ik}  {nazev}", key=f"menu_{pid}", width="stretch",
+                         type="primary" if aktivni else "secondary"):
+                st.session_state["stranka"] = pid
+                st.session_state.pop("upravuji", None)
+                st.session_state.pop("mazu", None)
+                st.rerun()
+    st.markdown(f"""
+<div class="sb-uzivatel">
+  <div class="sb-avatar">{AUTOR[:1]}</div>
+  <div><div class="sb-jmeno">{AUTOR}</div><div class="sb-role">{MISTO['nazev']} · {MISTO['obec']}</div></div>
+</div>""", unsafe_allow_html=True)
+    if spravne_heslo() and st.button("↪  Odhlásit", key="odhlasit", width="stretch"):
+        for k in ["prihlasen", "misto", "stranka"]:
+            st.session_state.pop(k, None)
+        st.query_params.clear()
+        st.rerun()
+
+STRANKA = st.session_state["stranka"]
+
+
+def nadpis(text, pod=None):
+    st.markdown(f'<div class="stranka-nadpis">{text}</div>'
+                + (f'<div class="stranka-pod">{pod}</div>' if pod else ""), unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+# AKTUÁLNÍ POČASÍ PRO SCÉNU
+# ─────────────────────────────────────────────
+@st.cache_data(ttl=1800, show_spinner=False)
+def aktualni_pocasi(lat, lon):
+    try:
+        url = ("https://api.open-meteo.com/v1/forecast?"
+               f"latitude={lat}&longitude={lon}&current=temperature_2m,weather_code,is_day&timezone=Europe%2FPrague")
+        with urllib.request.urlopen(url, timeout=8) as r:
+            c = json.loads(r.read().decode("utf-8"))["current"]
+        return c["temperature_2m"], int(c["weather_code"]), int(c.get("is_day", 1))
+    except Exception:
+        return None
+
+
+def ikona_pocasi(kod, den):
+    if kod == 0:
+        return "☀️" if den else "🌙"
+    if kod in (1, 2, 3):
+        return "⛅" if den else "☁️"
+    if kod in (45, 48):
+        return "🌫️"
+    if 51 <= kod <= 67:
+        return "🌧️"
+    if 71 <= kod <= 77:
+        return "❄️"
+    if 80 <= kod <= 82:
+        return "🌦️"
+    return "⛈️" if kod >= 95 else "☁️"
+
+
+def svg_pruhony():
+    """Ilustrace domu V Průhonech 384 (bungalov s valbovou střechou, cihlový plot) za soumraku."""
+    sloupky = [60, 460, 760, 1040, 1150, 1460]
+    plot = []
+    for a_, b_ in zip(sloupky, sloupky[1:]):
+        if (a_, b_) == (1040, 1150):
+            continue
+        plot.append(f'<rect x="{a_ + 50}" y="672" width="{b_ - a_ - 50}" height="88" fill="url(#plot)"/>'
+                    f'<rect x="{a_ + 50}" y="684" width="{b_ - a_ - 50}" height="5" fill="#3e281d"/>'
+                    f'<rect x="{a_ + 50}" y="738" width="{b_ - a_ - 50}" height="5" fill="#3e281d"/>')
+    plot.append('<rect x="0" y="672" width="60" height="88" fill="url(#plot)"/><rect x="1510" y="672" width="90" height="88" fill="url(#plot)"/>')
+    pilire = "".join(
+        f'<rect x="{x}" y="655" width="50" height="150" fill="url(#cihly)"/>'
+        f'<rect x="{x - 5}" y="646" width="60" height="12" rx="2" fill="#c97a5c"/>'
+        f'<rect x="{x}" y="658" width="50" height="147" fill="#000" opacity=".08"/>' for x in sloupky)
+    return f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="nebeP" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0d1734"/><stop offset=".42" stop-color="#2c3763"/>
+    <stop offset=".66" stop-color="#8a5272"/><stop offset=".82" stop-color="#ee8c52"/><stop offset="1" stop-color="#f7c07a"/>
+  </linearGradient>
+  <linearGradient id="okenko" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c2"/><stop offset="1" stop-color="#f4a43a"/></linearGradient>
+  <linearGradient id="zedP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2cba6"/><stop offset="1" stop-color="#b99a72"/></linearGradient>
+  <linearGradient id="zedP2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdb08a"/><stop offset="1" stop-color="#a5865f"/></linearGradient>
+  <radialGradient id="svit" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".6"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+  <pattern id="tasky" width="28" height="15" patternUnits="userSpaceOnUse">
+    <rect width="28" height="15" fill="#2c2f37"/><path d="M0 14 H28" stroke="#1b1d23" stroke-width="2.4"/>
+    <path d="M14 0 V14" stroke="#23262d" stroke-width="1.2"/><path d="M0 1.5 H28" stroke="#3a3e48" stroke-width="1"/>
+  </pattern>
+  <pattern id="cihly" width="40" height="16" patternUnits="userSpaceOnUse">
+    <rect width="40" height="16" fill="#b8644a"/><path d="M0 15.5 H40 M20 0 V8 M0 8 H40 M10 8 V16 M30 8 V16" stroke="#9c4f39" stroke-width="1.2"/>
+  </pattern>
+  <pattern id="plot" width="24" height="88" patternUnits="userSpaceOnUse">
+    <rect x="3" width="16" height="88" fill="#5c3b2b"/><rect x="3" width="3" height="88" fill="#6e4835"/>
+  </pattern>
+  <pattern id="dlazba" width="34" height="18" patternUnits="userSpaceOnUse">
+    <rect width="34" height="18" fill="#3a3e46"/><path d="M0 17.5 H34 M17 0 V9 M0 9 H34 M8 9 V18" stroke="#2c2f36" stroke-width="1.4"/>
+  </pattern>
+</defs>
+<rect width="1600" height="900" fill="url(#nebeP)"/>
+<g fill="#fff" opacity=".75"><circle cx="160" cy="70" r="1.6"/><circle cx="340" cy="130" r="1.2"/><circle cx="600" cy="55" r="1.4"/>
+<circle cx="1010" cy="80" r="1.2"/><circle cx="1240" cy="45" r="1.6"/><circle cx="1500" cy="110" r="1.1"/><circle cx="780" cy="120" r="1"/></g>
+<circle cx="1360" cy="140" r="30" fill="#fde9c4" opacity=".9"/>
+<!-- pozadí: soused a stromy -->
+<polygon points="0,470 70,430 260,430 330,470" fill="#3b2f2f" opacity=".85"/><rect x="20" y="470" width="290" height="190" fill="#2a2a33" opacity=".85"/>
+<rect x="60" y="500" width="40" height="40" fill="#f3b562" opacity=".7"/>
+<g fill="#13211c"><ellipse cx="300" cy="560" rx="120" ry="120"/><ellipse cx="1560" cy="470" rx="90" ry="150"/><ellipse cx="1500" cy="520" rx="70" ry="90"/></g>
+<ellipse cx="900" cy="520" rx="640" ry="230" fill="url(#svit)" opacity=".55"/>
+<!-- hlavní část domu -->
+<rect x="470" y="438" width="600" height="216" fill="url(#zedP)"/>
+<rect x="476" y="438" width="6" height="216" fill="#7b7f86"/>
+<!-- komín -->
+<rect x="900" y="232" width="34" height="90" fill="url(#cihly)"/>
+<rect x="895" y="222" width="44" height="12" fill="#8d9096"/><rect x="903" y="208" width="28" height="14" fill="#b6b9be"/>
+<line x1="944" y1="214" x2="944" y2="250" stroke="#9aa0a8" stroke-width="2"/><circle cx="952" cy="232" r="8" fill="#c9cdd2"/>
+<!-- střecha hlavní -->
+<polygon points="420,422 680,288 935,288 1112,422" fill="url(#tasky)"/>
+<polygon points="420,422 680,288 700,288 450,422" fill="#000" opacity=".18"/>
+<line x1="680" y1="288" x2="935" y2="288" stroke="#1b1d23" stroke-width="6" stroke-linecap="round"/>
+<line x1="680" y1="288" x2="420" y2="422" stroke="#1b1d23" stroke-width="5"/><line x1="935" y1="288" x2="1112" y2="422" stroke="#1b1d23" stroke-width="5"/>
+<polygon points="845,302 878,302 882,312 841,312" fill="#aab3bf"/>
+<g fill="#15171c">{''.join(f'<circle cx="{x}" cy="{330 + (abs(x - 808) // 25)}" r="2.6"/>' for x in range(600, 1020, 60))}</g>
+<rect x="414" y="420" width="700" height="10" fill="#1d2027"/><rect x="430" y="430" width="672" height="10" fill="#efe4cf"/>
+<!-- pravé křídlo -->
+<rect x="1052" y="450" width="398" height="204" fill="url(#zedP2)"/>
+<polygon points="1028,432 1138,300 1335,300 1498,432" fill="url(#tasky)"/>
+<polygon points="1028,432 1138,300 1158,300 1058,432" fill="#000" opacity=".22"/>
+<line x1="1138" y1="300" x2="1335" y2="300" stroke="#1b1d23" stroke-width="6" stroke-linecap="round"/>
+<line x1="1138" y1="300" x2="1028" y2="432" stroke="#1b1d23" stroke-width="5"/><line x1="1335" y1="300" x2="1498" y2="432" stroke="#1b1d23" stroke-width="5"/>
+<rect x="1022" y="430" width="482" height="10" fill="#1d2027"/><rect x="1040" y="440" width="448" height="10" fill="#e6d9c2"/>
+<rect x="1262" y="482" width="82" height="76" fill="#2a211d"/><rect x="1268" y="488" width="70" height="64" fill="url(#okenko)"/>
+<!-- okna a dveře -->
+<g>
+  <rect x="546" y="492" width="80" height="96" fill="#2a211d"/><rect x="553" y="499" width="66" height="82" fill="url(#okenko)"/>
+  <line x1="586" y1="499" x2="586" y2="581" stroke="#2a211d" stroke-width="3"/>
+  <rect x="553" y="499" width="66" height="30" fill="#fff" opacity=".18"/>
+  <rect x="550" y="583" width="72" height="9" fill="#5a4636"/><g fill="#facc15"><circle cx="562" cy="582" r="4"/><circle cx="574" cy="580" r="4"/><circle cx="598" cy="582" r="4"/><circle cx="610" cy="580" r="4"/></g>
+  <rect x="746" y="492" width="80" height="96" fill="#2a211d"/><rect x="753" y="499" width="66" height="82" fill="url(#okenko)"/>
+  <line x1="786" y1="499" x2="786" y2="581" stroke="#2a211d" stroke-width="3"/>
+  <rect x="753" y="499" width="66" height="30" fill="#fff" opacity=".18"/>
+  <rect x="750" y="583" width="72" height="9" fill="#5a4636"/><g fill="#fb923c"><circle cx="766" cy="582" r="4"/><circle cx="780" cy="580" r="4"/><circle cx="794" cy="582" r="4"/></g>
+  <rect x="938" y="492" width="70" height="162" fill="#2a1e19"/><rect x="944" y="498" width="58" height="156" fill="#3a2a23"/>
+  <rect x="970" y="510" width="8" height="96" fill="#efe1c6" opacity=".85"/>
+  <polygon points="952,572 994,548 994,560 952,584" fill="#efe1c6" opacity=".85"/>
+  <rect x="950" y="574" width="6" height="16" rx="2" fill="#d4a24a"/>
+  <circle cx="912" cy="470" r="7" fill="#1c1c22"/><circle cx="912" cy="470" r="34" fill="url(#svit)"/>
+</g>
+<!-- keře podzimní barvy -->
+<g>
+  <ellipse cx="1150" cy="560" rx="80" ry="78" fill="#7c9a2b"/><ellipse cx="1205" cy="540" rx="70" ry="88" fill="#d9752b"/>
+  <ellipse cx="1255" cy="590" rx="80" ry="64" fill="#c2410c"/><ellipse cx="1110" cy="610" rx="60" ry="46" fill="#a3b236"/>
+  <ellipse cx="1380" cy="585" rx="90" ry="70" fill="#e0662f"/><ellipse cx="1450" cy="560" rx="60" ry="80" fill="#b5401b"/>
+  <ellipse cx="1220" cy="500" rx="30" ry="40" fill="#f59e0b" opacity=".8"/>
+  <ellipse cx="1300" cy="560" rx="60" ry="50" fill="#ea8a34" opacity=".9"/>
+</g>
+<!-- plot -->
+{''.join(plot)}
+<rect x="1094" y="664" width="52" height="128" fill="#4a2f22"/><rect x="1094" y="664" width="52" height="128" fill="url(#plot)"/>
+<rect x="0" y="758" width="1600" height="48" fill="url(#cihly)"/><rect x="0" y="752" width="1600" height="9" fill="#c97a5c"/>
+<rect x="1094" y="752" width="52" height="54" fill="#4a2f22"/>
+{pilire}
+<text x="1175" y="690" font-size="20" font-weight="700" fill="#f1f5f9" text-anchor="middle" font-family="Inter, sans-serif">384</text>
+<rect x="1158" y="702" width="34" height="34" rx="3" fill="#475569"/><rect x="1162" y="708" width="26" height="4" fill="#1e293b"/>
+<rect x="1464" y="688" width="42" height="54" rx="3" fill="#d6d3cd" stroke="#8a8378" stroke-width="2"/>
+<rect x="1471" y="696" width="28" height="18" rx="2" fill="#1f2937"/><text x="1485" y="710" font-size="13" text-anchor="middle" fill="#facc15">⚡</text>
+<circle cx="1065" cy="640" r="6" fill="#ffe6a8"/><circle cx="1065" cy="640" r="36" fill="url(#svit)"/>
+<circle cx="1175" cy="640" r="6" fill="#ffe6a8"/><circle cx="1175" cy="640" r="36" fill="url(#svit)"/>
+<!-- štěrk a dlažba -->
+<rect x="0" y="806" width="1600" height="30" fill="#8f8b84"/>
+<g fill="#bdb8ae">{''.join(f'<circle cx="{(i * 37) % 1600}" cy="{812 + (i * 13) % 20}" r="3"/>' for i in range(90))}</g>
+<rect x="1090" y="806" width="62" height="30" fill="#a8704f"/>
+<rect x="0" y="836" width="1600" height="64" fill="url(#dlazba)"/>
+<ellipse cx="1250" cy="868" rx="38" ry="10" fill="#4b5563" stroke="#94a3b8" stroke-width="2"/>
+<ellipse cx="1250" cy="866" rx="24" ry="5" fill="#64748b"/>
+<!-- toky energie -->
+<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
+  <path class="sc-tok" d="M 922 205 C 945 185, 975 175, 1005 168" stroke="#f97316"/>
+  <path class="sc-tok" d="M 1485 686 C 1480 655, 1470 630, 1455 606" stroke="#facc15"/>
+  <path class="sc-tok" d="M 1212 866 C 1100 880, 960 870, 860 830" stroke="#38bdf8"/>
+</g>
+</svg>"""
+
+
+def scena_domu():
+    """Ilustrace domu za soumraku s plovoucími kartami energií (ve stylu „Power Empire“)."""
+    from zoneinfo import ZoneInfo
+    ted = datetime.now(ZoneInfo("Europe/Prague"))
+    dny_tydne = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    poc = aktualni_pocasi(LAT, LON)
+    poc_html = (f'<div class="sc-teplota">{ikona_pocasi(poc[1], poc[2])} {cislo(poc[0], 1)} °C</div>' if poc else "")
+
+    karty, souhrn, celkem_den = [], [], 0.0
+    pozice = {"plyn": ("sc-plyn", "#f97316"), "elektrina": ("sc-elektrina", "#facc15"), "voda": ("sc-voda", "#38bdf8")}
+    for e in PORADI:
+        v = vysledky.get(e)
+        inf = ENERGIE[e]
+        cls, barva = pozice[e]
+        t = tarif_podle.get(e)
+        if v and v["tempo"] is not None:
+            kc_den = v["tempo"] * v["cena_jednotky"] + float(t["mesicni_platy"]) / 30.4
+            celkem_den += kc_den
+            txt, bz, _ = stav_zalohy(v)
+            stav = {"Optimální": "záloha sedí", "Málo": "záloha malá", "Moc": "záloha velká"}.get(txt, "")
+            hodnota = f"{cislo(v['tempo'], 2)} {inf['jednotka']}/den"
+            pod = f"≈ {kc(kc_den)} / den"
+            souhrn.append(f'<div class="sc-r"><span>{inf["ikona"]} {inf["nazev"]}</span><b>{hodnota}</b></div>'
+                          f'<div class="sc-r sc-r2"><span>náklad</span><b>{kc(kc_den)} / den</b></div>')
+        else:
+            bz, stav, hodnota, pod = BARVA_PLAN, "", "–", "doplň aktuální stav"
+        karty.append(f"""
+<div class="sc-karta {cls}" style="--acc:{barva}">
+  <div class="sc-hlava">{inf['ikona']} {inf['nazev']}</div>
+  <div class="sc-hodnota">{hodnota}</div>
+  <div class="sc-pod">{pod}{f' · <span style="color:{bz}">●</span> {stav}' if stav else ''}</div>
+</div>""")
+
+    plyn_cara = ('<path class="sc-tok" d="M 820 205 C 840 180, 850 165, 870 150" stroke="#f97316"/>' if "plyn" in PORADI else "")
+    svg = svg_pruhony() if MISTO_KLIC == "pruhony" else f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="nebe" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0b1430"/><stop offset=".45" stop-color="#27325a"/>
+    <stop offset=".72" stop-color="#7a4a6b"/><stop offset=".9" stop-color="#f08a4b"/><stop offset="1" stop-color="#f6b26b"/>
+  </linearGradient>
+  <linearGradient id="okno" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a3"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+  <linearGradient id="travnik" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3b2b"/><stop offset="1" stop-color="#0b1a14"/></linearGradient>
+  <radialGradient id="zare" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+  <linearGradient id="zed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9e4dc"/><stop offset="1" stop-color="#b9b2a7"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#nebe)"/>
+<g fill="#fff" opacity=".7"><circle cx="140" cy="80" r="1.6"/><circle cx="320" cy="140" r="1.2"/><circle cx="560" cy="60" r="1.4"/>
+<circle cx="980" cy="90" r="1.3"/><circle cx="1220" cy="50" r="1.6"/><circle cx="1420" cy="120" r="1.1"/><circle cx="760" cy="130" r="1"/></g>
+<circle cx="1330" cy="150" r="34" fill="#fde9c4" opacity=".9"/>
+<path d="M0 560 C 200 500, 360 520, 520 540 S 900 500, 1100 530 S 1450 510, 1600 540 V 900 H 0 Z" fill="#1f2a44" opacity=".9"/>
+<path d="M0 600 C 260 570, 520 590, 800 600 S 1300 580, 1600 600 V 900 H 0 Z" fill="url(#travnik)"/>
+<!-- stromy -->
+<g fill="#0e1b17"><ellipse cx="170" cy="470" rx="110" ry="150"/><rect x="160" y="560" width="18" height="80"/>
+<ellipse cx="1470" cy="490" rx="90" ry="130"/><rect x="1462" y="570" width="16" height="70"/></g>
+<!-- dům -->
+<ellipse cx="800" cy="460" rx="430" ry="260" fill="url(#zare)"/>
+<polygon points="470,330 800,160 1130,330" fill="#2b2f38"/>
+<polygon points="490,330 800,175 1110,330" fill="#3a3f4b"/>
+<rect x="840" y="150" width="46" height="110" fill="#4b4f5b"/><rect x="834" y="142" width="58" height="14" fill="#5a5f6b"/>
+<rect x="505" y="330" width="590" height="290" fill="url(#zed)"/>
+<rect x="505" y="330" width="590" height="16" fill="#00000022"/>
+<rect x="545" y="380" width="200" height="200" rx="4" fill="url(#okno)"/>
+<line x1="645" y1="380" x2="645" y2="580" stroke="#3a3f4b" stroke-width="6"/>
+<rect x="790" y="380" width="120" height="110" rx="4" fill="url(#okno)"/>
+<rect x="945" y="380" width="110" height="110" rx="4" fill="#ffd27a" opacity=".85"/>
+<rect x="795" y="520" width="80" height="100" rx="3" fill="#3a3f4b"/><circle cx="862" cy="572" r="4" fill="#d4a24a"/>
+<g fill="#2b2f38" opacity=".55"><rect x="560" y="470" width="40" height="70" rx="6"/><rect x="660" y="490" width="60" height="30" rx="6"/></g>
+<!-- skříň elektroměru a plynoměru -->
+<rect x="1110" y="470" width="70" height="95" rx="6" fill="#d8d3ca" stroke="#9a948a" stroke-width="3"/>
+<rect x="1124" y="486" width="42" height="26" rx="3" fill="#1f2937"/><text x="1145" y="504" font-size="16" text-anchor="middle" fill="#facc15">⚡</text>
+<rect x="1124" y="522" width="42" height="30" rx="3" fill="#f3efe8" stroke="#9a948a"/>
+<!-- šachta vodoměru -->
+<ellipse cx="640" cy="720" rx="54" ry="18" fill="#3d4654" stroke="#64748b" stroke-width="3"/>
+<ellipse cx="640" cy="716" rx="36" ry="10" fill="#4b5563"/>
+<!-- cesta a lampy -->
+<path d="M835 620 L 760 900 L 980 900 L 880 620 Z" fill="#cfc6b6" opacity=".55"/>
+<g><rect x="1000" y="650" width="8" height="60" fill="#111827"/><circle cx="1004" cy="646" r="10" fill="#ffd27a"/><circle cx="1004" cy="646" r="34" fill="url(#zare)"/>
+<rect x="700" y="650" width="8" height="60" fill="#111827"/><circle cx="704" cy="646" r="10" fill="#ffd27a"/><circle cx="704" cy="646" r="34" fill="url(#zare)"/></g>
+<!-- toky energie -->
+<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
+  {plyn_cara}
+  <path class="sc-tok" d="M 1180 515 C 1230 500, 1260 480, 1290 455" stroke="#facc15"/>
+  <path class="sc-tok" d="M 640 705 C 660 740, 680 770, 690 790" stroke="#38bdf8"/>
+</g>
+</svg>"""
+    souhrn_html = "".join(souhrn) or '<div class="sc-r"><span>Zatím málo odečtů</span></div>'
+    html = f"""
+<div class="scena scena-{MISTO_KLIC}">
+  {svg}
+  <div class="sc-karta sc-pocasi">
+    <div class="sc-hlava">{dny_tydne[ted.weekday()]} {datum_cz(ted.date())} · {ted.strftime('%H:%M')}</div>
+    {poc_html}
+    <div class="sc-pod">{MISTO['obec']}</div>
+  </div>
+  {''.join(karty)}
+  <div class="sc-karta sc-souhrn">
+    <div class="sc-hlava">Denní tempo</div>
+    {souhrn_html}
+    <div class="sc-r sc-celkem"><span>Celkem</span><b>≈ {kc(celkem_den)} / den</b></div>
+    <div class="sc-r sc-r2"><span>měsíčně</span><b>≈ {kc(celkem_den * 30.4)}</b></div>
+  </div>
+</div>"""
+    return "".join(radek.strip() for radek in html.splitlines())
+
+
 platby_html = []
 for e in PORADI:
     v = vysledky.get(e)
@@ -1015,7 +1390,8 @@ for e in PORADI:
       </div>
     </div>""")
 
-st.markdown(f"""
+if STRANKA == "prehled":
+  st.markdown(f"""
 <div class="hero">
   <h1>{MISTO['ikona']} {MISTO['nazev']}</h1>
   <div class="sub">{MISTO['obec']} · {MISTO['popis']} · aktualizováno {datum_cz(max(v['posledni_datum'] for v in platne)) if platne else '–'}</div>
@@ -1024,11 +1400,14 @@ st.markdown(f"""
     <div class="hero-kpi"><div class="l">Zálohy na nulu</div><div class="v">{kc(zalohy_nulu)}</div><div class="s">rozdíl {kc_znamenko(zalohy_nulu - zalohy_ted)}</div></div>
     <div class="hero-kpi"><div class="l">Odhad vyúčtování</div><div class="v" style="color:{barva_bil}">{kc_znamenko(bilance_celkem)}</div><div class="s">≈ {kc(mesicne_celkem)} měsíčně skutečně</div></div>
   </div>
-  <div class="platby">{"".join(platby_html)}</div>
 </div>
 """, unsafe_allow_html=True)
+  st.markdown(scena_domu(), unsafe_allow_html=True)
 
-with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování"):
+if STRANKA == "platby":
+    nadpis("💳 Zálohy a platby", f"{MISTO['nazev']} · měsíční zálohy, účty a QR platby")
+    st.markdown(f'<div class="platby platby-velke">{"".join(platby_html)}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sekce">Zaplatit zálohu – QR kód</div>', unsafe_allow_html=True)
     qr_zal = st.tabs([f"{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}" for e in PORADI])
     for e, tab in zip(PORADI, qr_zal):
         with tab:
@@ -1056,7 +1435,7 @@ with st.expander("📱 Zaplatit zálohu – QR kód a údaje ke zkopírování")
 if "ulozeno" in st.session_state:
     st.success(st.session_state.pop("ulozeno"))
 
-for e in PORADI:
+for e in (PORADI if STRANKA == "prehled" else []):
     t = tarif_podle.get(e)
     if t is None or not t["konec_smlouvy"]:
         continue
@@ -1070,12 +1449,12 @@ for e in PORADI:
         st.markdown(f"""
 <div class="smlouva" style="--acc:{ENERGIE[e]['barva']}">
   <div><b>{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}: {t['konec_popis'] or 'konec smlouvy'} {kdy.replace('**', '')}</b></div>
-  <div>{t['dodavatel']} · Mrkni na nabídky a porovnej je v kalkulačce dole ve Správě –
+  <div>{t['dodavatel']} · Mrkni na nabídky a porovnej je v menu Nástroje → Porovnat nabídky –
   při automatickém prodloužení zůstaneš na ceníku, který nemusí být výhodný.</div>
 </div>""", unsafe_allow_html=True)
 
 PRAHY_ANOMALIE = {"voda": 1.2, "elektrina": 1.25, "plyn": 1.3}
-for e in PORADI:
+for e in (PORADI if STRANKA == "prehled" else []):
     an = anomalie(odecty, e)
     if not an:
         continue
@@ -1155,9 +1534,11 @@ def formular_stavu(e, v):
 # ─────────────────────────────────────────────
 # ZÁLOŽKY PO ENERGIÍCH
 # ─────────────────────────────────────────────
-zalozky = st.tabs([f"{ENERGIE[e]['ikona']} {ENERGIE[e]['nazev']}" for e in PORADI])
-for e, tab in zip(PORADI, zalozky):
-    with tab:
+if STRANKA in PORADI:
+    nadpis(f"{ENERGIE[STRANKA]['ikona']} {ENERGIE[STRANKA]['nazev']}",
+           f"{MISTO['nazev']} · {tarif_podle[STRANKA]['dodavatel'] if STRANKA in tarif_podle else ''}")
+for e in [x for x in PORADI if x == STRANKA]:
+    if True:
         v = vysledky.get(e)
         info = ENERGIE[e]
         acc = info["barva"]
@@ -1388,8 +1769,8 @@ for e, tab in zip(PORADI, zalozky):
 # ─────────────────────────────────────────────
 # HISTORIE ODEČTŮ – úprava a mazání s potvrzením
 # ─────────────────────────────────────────────
-st.markdown('<div class="sekce">Správa</div>', unsafe_allow_html=True)
-with st.expander("🔌 Co kolik stojí"):
+if STRANKA == "spotrebice":
+    nadpis("🔌 Co kolik stojí", "Spotřebiče, svícení a vlastní kalkulace podle tvých cen")
     t_el, t_pl, t_vo = tarif_podle.get("elektrina"), tarif_podle.get("plyn"), tarif_podle.get("voda")
     c_kwh = float(t_el["cena_za_kwh"]) if t_el is not None else 0
     c_nt = float(t_el["cena_nt_kwh"]) if t_el is not None and float(t_el["cena_nt_kwh"]) > 0 else c_kwh
@@ -1479,7 +1860,8 @@ with st.expander("🔌 Co kolik stojí"):
         st.markdown(f"Jeden den **{kc(kwh_den * c_kwh)}** · měsíčně **{kc(rok / 12 * c_kwh)}** · "
                     f"ročně **{kc(rok * c_kwh)}** ({cislo(rok, 0)} kWh)")
 
-with st.expander("📄 Roční přehled do PDF"):
+if STRANKA == "pdf":
+    nadpis("📄 Roční přehled do PDF", f"{MISTO['nazev']} · souhrn roku ke stažení")
     roky_vse = set()
     for e in PORADI:
         r_ = denni_rada(odecty, e)
@@ -1498,7 +1880,8 @@ with st.expander("📄 Roční přehled do PDF"):
             st.download_button("⬇️ Stáhnout PDF", data=pdf[2], file_name=f"energie_{MISTO_KLIC}_{rok_pdf}.pdf",
                                mime="application/pdf", type="primary", width="stretch")
 
-with st.expander("💡 Porovnat nabídku jiného dodavatele"):
+if STRANKA == "nabidky":
+    nadpis("💡 Porovnat nabídky", "Kolik bys ušetřil u jiného dodavatele")
     st.caption("Dodavatel ovlivní jen obchodní část ceny (cena za kWh + stálý plat). Distribuce a poplatky "
                "státu jsou u všech stejné, proto se porovnává jen obchodní část – podle tvé skutečné roční spotřeby.")
     k_e = st.radio("Energie", [x for x in ["elektrina", "plyn"] if x in PORADI], horizontal=True, label_visibility="collapsed",
@@ -1532,7 +1915,8 @@ with st.expander("💡 Porovnat nabídku jiného dodavatele"):
             st.caption("Před podpisem zkontroluj i délku fixace, výpovědní lhůty a případné poplatky za předčasné ukončení.")
     st.caption("Aktuální obchodní ceny upravíš v ⚙️ Ceny a zálohy.")
 
-with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
+if STRANKA == "historie":
+    nadpis("📋 Historie odečtů", f"{MISTO['nazev']} · {len(odecty)} záznamů – úprava a mazání")
     filtr = st.radio("Filtr", ["vše"] + PORADI, horizontal=True, label_visibility="collapsed",
                      format_func=lambda x: "Vše" if x == "vše" else f"{ENERGIE[x]['ikona']} {ENERGIE[x]['nazev']}",
                      key="filtr_hist")
@@ -1600,7 +1984,8 @@ with st.expander(f"📋 Historie odečtů ({len(odecty)})"):
 # ─────────────────────────────────────────────
 # CENY A ZÁLOHY – úprava po novém vyúčtování
 # ─────────────────────────────────────────────
-with st.expander("⚙️ Ceny a zálohy"):
+if STRANKA == "nastaveni":
+    nadpis("⚙️ Ceny a zálohy", "Uprav po každém vyúčtování nebo změně ceny")
     st.caption("Uprav po každém vyúčtování nebo změně ceny či zálohy. Ceny vč. DPH. "
                "Plyn: cena za kWh a přepočet kWh na m³ z faktury (objemový koeficient × spalné teplo).")
     for e in PORADI:
