@@ -47,7 +47,7 @@ SLOUPCE_TARIFY = [
     "energie", "dodavatel", "cena_za_kwh", "kwh_na_jednotku", "mesicni_platy",
     "zaloha", "obdobi_od", "stav_obdobi_od", "obdobi_do",
     "zaplaceno", "zaplaceno_k_datu", "den_splatnosti", "rezerva_pct", "cena_plati",
-    "ucet", "vs", "obchodni_kwh", "obchodni_mesic", "konec_smlouvy", "konec_popis", "cena_nt_kwh",
+    "ucet", "vs", "obchodni_kwh", "obchodni_mesic", "konec_smlouvy", "konec_popis", "cena_nt_kwh", "zalohy_do",
 ]
 SLOUPCE_TARIFY_ZAKLAD = SLOUPCE_TARIFY[:14]  # starší tabulky bez novějších sloupců
 
@@ -98,21 +98,21 @@ VYCHOZI_TARIFY = [
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Nefixováno (smlouva do 3. 12. 2026)",
      "ucet": "19-17608231/0100", "vs": "6401196187",
      "obchodni_kwh": 3.53925, "obchodni_mesic": 143.99,
-     "konec_smlouvy": "2026-12-03", "konec_popis": "Smlouva (bez fixace) končí", "cena_nt_kwh": 0},
+     "konec_smlouvy": "2026-12-03", "konec_popis": "Smlouva (bez fixace) končí", "cena_nt_kwh": 0, "zalohy_do": ""},
     {"energie": "plyn", "dodavatel": "E.ON", "cena_za_kwh": 1.48004, "kwh_na_jednotku": 10.92,
      "mesicni_platy": 384.36, "zaloha": 1310, "obdobi_od": "2026-10-08", "stav_obdobi_od": 6391,
      "obdobi_do": "2027-10-08", "zaplaceno": 1000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 0, "cena_plati": "Fixováno do 31. 12. 2027",
      "ucet": "19-17608231/0100", "vs": "6401196186",
      "obchodni_kwh": 1.0285, "obchodni_mesic": 156.09,
-     "konec_smlouvy": "2027-12-31", "konec_popis": "Fixace ceny končí", "cena_nt_kwh": 0},
+     "konec_smlouvy": "2027-12-31", "konec_popis": "Fixace ceny končí", "cena_nt_kwh": 0, "zalohy_do": ""},
     {"energie": "voda", "dodavatel": "VS Chrudim", "cena_za_kwh": 143.04, "kwh_na_jednotku": 1,
      "mesicni_platy": 81.08, "zaloha": 2000, "obdobi_od": "2026-05-15", "stav_obdobi_od": 2283,
      "obdobi_do": "2027-05-15", "zaplaceno": 10000, "zaplaceno_k_datu": "2026-10-20",
      "den_splatnosti": 15, "rezerva_pct": 5, "cena_plati": "Ceník 2026, rezerva 5 % na zdražení",
      "ucet": "1092006008/5500", "vs": "4200385398",
      "obchodni_kwh": 0, "obchodni_mesic": 0,
-     "konec_smlouvy": "", "konec_popis": "", "cena_nt_kwh": 0},
+     "konec_smlouvy": "", "konec_popis": "", "cena_nt_kwh": 0, "zalohy_do": ""},
 ]
 
 
@@ -121,9 +121,23 @@ VYCHOZI_TARIFY = [
 # ─────────────────────────────────────────────
 # Strkov 9 – elektřina PRE, dvoutarif D25d (VT/NT), elektroměr 2480513295. Výchozí data z faktury PRE 180369872.
 STRKOV_ODECTY = [  # (datum, energie, stav celkem, typ, poznámka, měřidlo, stav NT)
-    ("2025-02-01", "elektrina", 347, "odečet", "Faktura PRE · VT 148 + NT 199", "2480513295", 199),
+    ("2025-02-01", "elektrina", 347, "odhad", "Faktura PRE (odhad distributora) · VT 148 + NT 199", "2480513295", 199),
     ("2025-06-21", "elektrina", 1449, "odečet", "Faktura PRE · VT 390 + NT 1059", "2480513295", 1059),
 ]
+STRKOV_HISTORIE = [  # faktury ČEZ Prodej 2024/25 a PRE 2025/26
+    ("2024-06-23", "elektrina", 32096, "odečet", "Faktura ČEZ · VT 23 319 + NT 8 777", "1020192976", 8777),
+    ("2024-10-24", "elektrina", 32933, "odečet", "Výměna elektroměru – konečný stav starého · VT 23 487 + NT 9 446", "1020192976", 9446),
+    ("2024-10-25", "elektrina", 4, "odečet", "Výměna elektroměru – nový elektroměr · VT 2 + NT 2", "2480513295", 2),
+    ("2024-12-31", "elektrina", 225, "odhad", "Faktura ČEZ (odhad) · VT 96 + NT 129", "2480513295", 129),
+    ("2025-08-31", "elektrina", 1850, "odhad", "Faktura PRE (rozpočet) · VT 488 + NT 1 362", "2480513295", 1362),
+    ("2025-12-31", "elektrina", 2735, "odhad", "Faktura PRE (odhad) · VT 706 + NT 2 029", "2480513295", 2029),
+    ("2026-07-04", "elektrina", 3915, "odečet", "Faktura PRE (samoodečet) · VT 996 + NT 2 919", "2480513295", 2919),
+]
+# zúčtovací období podle faktury PRE 189547408 (8. 7. 2026): zálohy 1 390 Kč vždy 25., poslední 25. 5. 2027,
+# červenec–září uhrazeno přeplatkem 5 345 Kč (3 × 1 390 Kč)
+STRKOV_OBDOBI = {"obdobi_od": "2026-07-05", "obdobi_do": "2027-07-04", "stav_obdobi_od": 3915,
+                 "zaloha": 1390, "den_splatnosti": 25, "zaplaceno": 4170, "zaplaceno_k_datu": "2026-10-22",
+                 "zalohy_do": "2027-05-25"}
 # Smlouva PRE SoSSE/0008552627, produkt PRE PROUD EXTRA 3 07/2026 (dodávka od 22. 7. 2026, fixace do 30. 6. 2029),
 # distribuce ČEZ Distribuce, D25d, jistič 3x25 A. Ceny vč. DPH.
 PRE_EXTRA3 = {
@@ -136,9 +150,8 @@ PRE_EXTRA3 = {
 }
 STARA_CENA_STRKOV = 6.65661  # ceník PRE 2025 – pokud ho tabulka ještě má, jednou se nahradí novou smlouvou
 STRKOV_TARIFY = [
-    {"energie": "elektrina", "dodavatel": "PRE", **PRE_EXTRA3, "kwh_na_jednotku": 1,
-     "zaloha": 1730, "stav_obdobi_od": 0, "zaplaceno": 0, "den_splatnosti": 11, "rezerva_pct": 0,
-     "ucet": "19-2784000277/0100", "vs": "21867837"},
+    {"energie": "elektrina", "dodavatel": "PRE", **PRE_EXTRA3, **STRKOV_OBDOBI, "kwh_na_jednotku": 1,
+     "rezerva_pct": 0, "ucet": "19-2784000277/0100", "vs": "21867837"},
     {"energie": "voda", "dodavatel": "doplň", "cena_za_kwh": 0, "kwh_na_jednotku": 1,
      "mesicni_platy": 0, "zaloha": 0, "obdobi_od": "2026-01-01", "stav_obdobi_od": 0,
      "obdobi_do": "2026-12-31", "zaplaceno": 0, "zaplaceno_k_datu": "2026-01-01",
@@ -153,7 +166,7 @@ MISTA = {
                 "tarify": VYCHOZI_TARIFY},
     "strkov": {"nazev": "Strkov 9", "obec": "Ctětín", "ikona": "🏡", "popis": "Mamka · Pavlína Dvořáčková",
                "energie": ["elektrina", "voda"], "list_odecty": "odecty_strkov", "list_tarify": "tarify_strkov",
-               "tarify": STRKOV_TARIFY, "odecty": STRKOV_ODECTY},
+               "tarify": STRKOV_TARIFY, "odecty": STRKOV_ODECTY, "historie": STRKOV_HISTORIE},
 }
 DUVOD = {}  # proč u energie nejde nic spočítat (zobrazí se v záložce)
 
@@ -234,7 +247,7 @@ def nacti_data(ul, misto):
         odecty = pd.DataFrame(
             [{"id": f"init{i:03d}", "datum": d, "energie": e, "stav": s, "typ": t, "poznamka": p,
               "meridlo": mr, "stav_nt": nt}
-             for i, (d, e, s, t, p, mr, nt) in enumerate(m.get("odecty", []))],
+             for i, (d, e, s, t, p, mr, nt) in enumerate(m.get("odecty", []) + m.get("historie", []))],
             columns=SLOUPCE_ODECTY,
         )
         ul.uloz(l_od, odecty)
@@ -242,6 +255,18 @@ def nacti_data(ul, misto):
         if c not in odecty.columns:
             odecty[c] = None
     odecty = odecty[SLOUPCE_ODECTY]
+    if misto == "strkov":
+        mam = {(str(d)[:10], round(float(st_), 1)) for d, st_ in zip(odecty["datum"], odecty["stav"])}
+        nove = [{"id": f"hist{i:03d}", "datum": d, "energie": e, "stav": s_, "typ": t, "poznamka": p,
+                 "meridlo": mr, "stav_nt": nt}
+                for i, (d, e, s_, t, p, mr, nt) in enumerate(STRKOV_HISTORIE) if (d, round(float(s_), 1)) not in mam]
+        oprava = (odecty["id"].astype(str) == "init000") & (odecty["typ"] == "odečet")
+        if nove or oprava.any():
+            odecty = odecty.copy()
+            odecty.loc[oprava, "typ"] = "odhad"
+            odecty = pd.concat([odecty, pd.DataFrame(nove, columns=SLOUPCE_ODECTY)], ignore_index=True)
+            odecty["datum"] = odecty["datum"].astype(str).str[:10]
+            ul.uloz(l_od, odecty[SLOUPCE_ODECTY])
 
     vych_seznam = m["tarify"]
     tarify = ul.nacti(l_ta, SLOUPCE_TARIFY_ZAKLAD)
@@ -260,6 +285,7 @@ def nacti_data(ul, misto):
     for c in ["ucet", "konec_popis", "dodavatel", "cena_plati"]:
         tarify[c] = tarify[c].fillna("").astype(str)
     tarify["konec_smlouvy"] = tarify["konec_smlouvy"].fillna("").astype(str).str[:10]
+    tarify["zalohy_do"] = tarify["zalohy_do"].fillna("").astype(str).str[:10]
     tarify["vs"] = tarify["vs"].fillna("").astype(str).str.replace(r"\.0$", "", regex=True)
     for c in ["cena_za_kwh", "kwh_na_jednotku", "mesicni_platy", "zaloha", "stav_obdobi_od", "zaplaceno",
               "den_splatnosti", "rezerva_pct", "obchodni_kwh", "obchodni_mesic", "cena_nt_kwh"]:
@@ -273,6 +299,15 @@ def nacti_data(ul, misto):
                 tarify.loc[stara, k_] = h_
             ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
             for c in ["cena_za_kwh", "cena_nt_kwh", "mesicni_platy", "obchodni_kwh", "obchodni_mesic"]:
+                tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
+        odhad_obdobi = (tarify["energie"] == "elektrina") & (tarify["obdobi_od"].astype(str).str[:10] == "2026-07-22") \
+            & (tarify["zaplaceno"] == 0)
+        if odhad_obdobi.any():
+            for k_, h_ in STRKOV_OBDOBI.items():
+                tarify[k_] = tarify[k_].astype(object)
+                tarify.loc[odhad_obdobi, k_] = h_
+            ul.uloz(l_ta, tarify[SLOUPCE_TARIFY])
+            for c in ["stav_obdobi_od", "zaloha", "den_splatnosti", "zaplaceno"]:
                 tarify[c] = pd.to_numeric(tarify[c], errors="coerce").fillna(0)
 
     odecty = odecty.copy()
@@ -324,6 +359,8 @@ def platby(t, dnes):
     zaplaceno = float(t["zaplaceno"])
     k_datu = pd.to_datetime(t["zaplaceno_k_datu"]).date()
     do = pd.to_datetime(t["obdobi_do"]).date()
+    if str(t.get("zalohy_do", "") or "")[:10] not in ("", "nan", "NaT"):
+        do = min(do, pd.to_datetime(t["zalohy_do"]).date())
     den = int(t["den_splatnosti"])
     zaloha = float(t["zaloha"])
     zbyva = 0
@@ -406,7 +443,8 @@ def spocitej(energie, odecty, t, dnes):
     posl = rs.iloc[-1]
     od = pd.to_datetime(t["obdobi_od"]).date()
     do = pd.to_datetime(t["obdobi_do"]).date()
-    if posl["datum"] <= od:
+    stav_od_zadan = float(t["stav_obdobi_od"] or 0) > 0
+    if posl["datum"] < od - timedelta(days=7) or (posl["datum"] <= od and not stav_od_zadan):
         DUVOD[energie] = (f"Poslední stav je z {datum_cz(posl['datum'])}, ale zúčtovací období začalo "
                           f"{datum_cz(od)}. Zadej aktuální stav měřidla – stav na začátku období dopočítám.")
         return None
@@ -475,6 +513,7 @@ def spocitej(energie, odecty, t, dnes):
         "podil_nt": podil_nt,
         "naklad_dosud": naklad_dosud, "zaplaceno_dosud": zaplaceno_dosud,
         "bilance_dosud": zaplaceno_dosud - naklad_dosud,
+        "dosud_ok": posl["datum"] > od,   # „vyúčtování k dnešku“ má smysl až s odečtem uvnitř období
     }
 
 
@@ -1742,7 +1781,7 @@ def scena_domu():
                           f'<div class="sc-r sc-r2"><span>náklad</span><b>{kc(kc_den)} / den</b></div>')
         else:
             bz, stav, hodnota, pod = BARVA_PLAN, "", "–", "doplň aktuální stav"
-        if v:
+        if v and v["dosud_ok"]:
             bd = v["bilance_dosud"]
             dnes_html = (f'<div class="sc-dnes"><div class="sc-dnes-l">Kdyby vyúčtování bylo dnes</div>'
                          f'<div class="sc-dnes-v" style="color:{BARVA_OK if bd >= 0 else BARVA_ZLE}">{kc_znamenko(bd)}'
@@ -1998,22 +2037,25 @@ for e in [x for x in PORADI if x == STRANKA]:
 """, unsafe_allow_html=True)
 
         # Vyúčtování k poslednímu odečtu
-        nd, zd, bd = v["naklad_dosud"], v["zaplaceno_dosud"], v["bilance_dosud"]
-        maxi = max(nd, zd, 1)
-        barva_bd = BARVA_OK if bd >= 0 else BARVA_ZLE
-        pomer_d = zd / nd * 100 if nd > 0 else 0
-        st.markdown(f"""
-<div class="dnes">
-  <div class="dnes-hlava">
-    <div><div class="l">Kdyby vyúčtování bylo k {datum_cz(v['posledni_datum'])}</div>
-      <div class="v" style="color:{barva_bd}">{kc_znamenko(bd)}</div>
-      <div class="s">{'přeplatek' if bd >= 0 else 'nedoplatek'} · zálohy pokrývají {pomer_d:.0f} % spotřeby od {datum_cz(v['obdobi_od'])}</div></div>
-  </div>
-  <div class="bar-radek"><span>Spotřebováno</span><div class="bar"><div style="width:{nd / maxi * 100:.1f}%;background:{acc}"></div></div><b>{kc(nd)}</b></div>
-  <div class="bar-radek"><span>Zaplaceno</span><div class="bar"><div style="width:{zd / maxi * 100:.1f}%;background:{BARVA_PRIMARNI}"></div></div><b>{kc(zd)}</b></div>
-  <div class="s">{cislo(v['pouzito'], 1)} {info['jednotka']} × {cislo(v['cena_jednotky'], 2)} Kč + stálé platby. Pozor: nezahrnuje spotřebu, která teprve přijde (u plynu hlavně zima) – na konci období rozhoduje „Odhad vyúčtování“.</div>
-</div>
-""", unsafe_allow_html=True)
+        if not v["dosud_ok"]:
+            st.info(f"Zúčtovací období začalo {datum_cz(v['obdobi_od'])} – zapiš aktuální stav měřidla a uvidíš, jak by vyšlo vyúčtování k dnešku.")
+        else:
+            nd, zd, bd = v["naklad_dosud"], v["zaplaceno_dosud"], v["bilance_dosud"]
+            maxi = max(nd, zd, 1)
+            barva_bd = BARVA_OK if bd >= 0 else BARVA_ZLE
+            pomer_d = zd / nd * 100 if nd > 0 else 0
+            st.markdown(f"""
+    <div class="dnes">
+      <div class="dnes-hlava">
+        <div><div class="l">Kdyby vyúčtování bylo k {datum_cz(v['posledni_datum'])}</div>
+          <div class="v" style="color:{barva_bd}">{kc_znamenko(bd)}</div>
+          <div class="s">{'přeplatek' if bd >= 0 else 'nedoplatek'} · zálohy pokrývají {pomer_d:.0f} % spotřeby od {datum_cz(v['obdobi_od'])}</div></div>
+      </div>
+      <div class="bar-radek"><span>Spotřebováno</span><div class="bar"><div style="width:{nd / maxi * 100:.1f}%;background:{acc}"></div></div><b>{kc(nd)}</b></div>
+      <div class="bar-radek"><span>Zaplaceno</span><div class="bar"><div style="width:{zd / maxi * 100:.1f}%;background:{BARVA_PRIMARNI}"></div></div><b>{kc(zd)}</b></div>
+      <div class="s">{cislo(v['pouzito'], 1)} {info['jednotka']} × {cislo(v['cena_jednotky'], 2)} Kč + stálé platby. Pozor: nezahrnuje spotřebu, která teprve přijde (u plynu hlavně zima) – na konci období rozhoduje „Odhad vyúčtování“.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
         # Dlaždice
         barva_bil =BARVA_OK if v["bilance"] >= 0 else BARVA_ZLE
@@ -2443,6 +2485,9 @@ if STRANKA == "nastaveni":
             c1, c2 = st.columns(2)
             zaplaceno = c1.number_input("Zaplaceno v období (Kč)", value=float(t["zaplaceno"]), step=10.0, format="%.0f")
             k_datu = c2.date_input("…k datu", value=pd.to_datetime(t["zaplaceno_k_datu"]).date(), format="DD.MM.YYYY")
+            zal_do_val = pd.to_datetime(t["zalohy_do"]).date() if t["zalohy_do"] not in ("", "nan") else None
+            zal_do = st.date_input("Poslední záloha v období (nepovinné – podle předpisu záloh)", value=zal_do_val,
+                                   format="DD.MM.YYYY")
             c1, c2 = st.columns(2)
             rezerva = c1.number_input("Rezerva na zdražení (%)", value=float(t["rezerva_pct"]), step=1.0, format="%.0f")
             plati = c2.text_input("Cena platí", value=str(t["cena_plati"]))
@@ -2465,10 +2510,11 @@ if STRANKA == "nastaveni":
                 ven.loc[m, ["zaloha", "cena_za_kwh", "mesicni_platy", "kwh_na_jednotku", "obdobi_od", "obdobi_do",
                             "stav_obdobi_od", "zaplaceno", "zaplaceno_k_datu", "rezerva_pct", "cena_plati",
                             "ucet", "vs", "den_splatnosti", "obchodni_kwh", "obchodni_mesic",
-                            "konec_smlouvy", "konec_popis", "dodavatel", "cena_nt_kwh"]] = [
+                            "konec_smlouvy", "konec_popis", "dodavatel", "cena_nt_kwh", "zalohy_do"]] = [
                     zaloha, cena, mes, prepocet, od.isoformat(), do.isoformat(), stav_od,
                     zaplaceno, k_datu.isoformat(), rezerva, plati, ucet.strip(), vs.strip(), den, obch_kwh, obch_mes,
-                    konec.isoformat() if konec else "", konec_txt, dodavatel.strip(), cena_nt if e == "elektrina" else 0]
+                    konec.isoformat() if konec else "", konec_txt, dodavatel.strip(), cena_nt if e == "elektrina" else 0,
+                    zal_do.isoformat() if zal_do else ""]
                 ul.uloz(L_TARIFY, ven[SLOUPCE_TARIFY])
                 st.session_state["ulozeno"] = f"{info['nazev']}: ceny a zálohy uloženy."
                 st.rerun()
