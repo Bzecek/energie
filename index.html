@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Energie</title>
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Energie">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="ikona.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root { --bg: #0b1220; --fg: #e2e8f0; --muted: #94a3b8; --zelena: #10b981; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  #appka { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg);
+    padding-top: env(safe-area-inset-top); box-sizing: border-box; }
+  #uvod { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; background: radial-gradient(120% 80% at 0% 0%, rgba(16,185,129,.25), transparent 60%),
+    radial-gradient(120% 80% at 100% 100%, rgba(249,115,22,.22), transparent 60%), var(--bg);
+    transition: opacity .4s ease; z-index: 2; }
+  #uvod.skryt { opacity: 0; pointer-events: none; }
+  #uvod img { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  #uvod h1 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+  #uvod p { margin: 0; color: var(--muted); font-size: .92rem; text-align: center; max-width: 18rem; line-height: 1.5; }
+  .nacitani { width: 140px; height: 4px; border-radius: 999px; background: rgba(148,163,184,.2); overflow: hidden; }
+  .nacitani::after { content: ""; display: block; width: 40%; height: 100%; border-radius: 999px; background: var(--zelena);
+    animation: jizda 1.1s ease-in-out infinite; }
+  @keyframes jizda { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+  #pomalu { display: none; }
+  #pomalu a, #offline a { color: var(--zelena); }
+  #offline { display: none; }
+</style>
+</head>
+<body>
+<div id="uvod">
+  <img src="ikona-192.png" alt="">
+  <h1>Energie</h1>
+  <div class="nacitani" id="pruh"></div>
+  <p id="pomalu">Appka se probouzí ze spánku, chvilku to potrvá…<br>
+    Kdyby se nic nedělo, <a id="odkaz" href="#" target="_blank" rel="noopener">otevři ji v prohlížeči</a>.</p>
+  <p id="offline">Nejsi připojený k internetu.<br>Appka potřebuje připojení – zkus to znovu, až budeš online.<br><br>
+    <a href="#" onclick="location.reload();return false;">Zkusit znovu</a></p>
+</div>
+<iframe id="appka" title="Energie" allow="camera; clipboard-write; fullscreen"></iframe>
+<script>
+  // ⬇⬇⬇ SEM VLOŽ ADRESU SVÉ APPKY ZE STREAMLITU (bez lomítka na konci) ⬇⬇⬇
+  const APP_URL = "https://energie-doma.streamlit.app";
+
+  // parametry z odkazu (např. ?misto=strkov ze zkratky na ikoně) předáme appce
+  const parametry = new URLSearchParams(location.search);
+  parametry.set("embed", "true");
+  parametry.set("embed_options", "dark_theme");
+  const cil = APP_URL + "/?" + parametry.toString();
+  document.getElementById("odkaz").href = APP_URL + "/?" + new URLSearchParams(location.search).toString();
+
+  const uvod = document.getElementById("uvod");
+  function online() {
+    document.getElementById("offline").style.display = "none";
+    document.getElementById("pruh").style.display = "";
+    const ram = document.getElementById("appka");
+    ram.addEventListener("load", () => setTimeout(() => uvod.classList.add("skryt"), 600), { once: true });
+    ram.src = cil;
+    setTimeout(() => { if (!uvod.classList.contains("skryt")) document.getElementById("pomalu").style.display = "block"; }, 8000);
+  }
+  if (navigator.onLine) { online(); }
+  else {
+    document.getElementById("offline").style.display = "block";
+    document.getElementById("pruh").style.display = "none";
+    window.addEventListener("online", () => location.reload(), { once: true });
+  }
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+</script>
+</body>
+</html>

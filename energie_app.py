@@ -1002,8 +1002,27 @@ div.st-key-scena_obal div.st-key-karta_strkov_voda {{ left: 33%; top: auto; bott
   div.st-key-scena_obal > div:first-child {{ grid-column: span 2; }}
   div.st-key-scena_obal div.st-key-scena_obal div[class*="st-key-karta_"], div.st-key-scena_obal div[class*="st-key-karta_"][class*="_"] {{
     position: relative; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; width: auto; }}
-  div[class*="st-key-karta_"] .sc-dnes {{ max-height: 140px; opacity: 1; margin-top: 8px; padding-top: 7px;
-    border-top: 1px solid rgba(148,163,184,.25); }}
+}}
+.sc-mobil {{ display: none; }}
+.sc-mobil summary {{ list-style: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }}
+.sc-mobil summary::-webkit-details-marker {{ display: none; }}
+.sc-klepni {{ font-size: .68rem; color: #94a3b8; margin-top: 6px; }}
+.sc-klepni span {{ display: inline-block; transition: transform .2s; }}
+.sc-mobil[open] .sc-klepni {{ color: var(--acc); }}
+.sc-mobil[open] .sc-klepni span {{ transform: rotate(180deg); }}
+.sc-mobil .sc-dnes-m {{ max-height: none; opacity: 1; margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(148,163,184,.25);
+  animation: rozbal .25s ease; }}
+.sc-mobil[open] {{ border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }}
+@keyframes rozbal {{ from {{ opacity: 0; transform: translateY(-4px); }} to {{ opacity: 1; transform: none; }} }}
+@media (hover: none), (max-width: 760px) {{
+  .sc-pc {{ display: none; }}
+  .sc-mobil {{ display: block; }}
+  .sc-mobil .sc-detail {{ float: none; position: absolute; top: 8px; right: 8px; padding: 4px 10px; border-radius: 999px;
+    background: rgba(148,163,184,.14); border: 1px solid rgba(148,163,184,.3); color: #e2e8f0; font-size: .72rem; font-weight: 600; }}
+  div[class*="st-key-skok_"] {{ inset: auto; top: 4px; right: 4px; width: 92px !important; height: 34px !important; }}
+  div[class*="st-key-karta_"]:hover {{ transform: none; }}
+  div[class*="st-key-karta_"]:hover .sc-energie {{ box-shadow: 0 8px 24px rgba(0,0,0,.35); border-color: rgba(148,163,184,.28); }}
+  div[class*="st-key-karta_"] .sc-mobil[open] {{ border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }}
 }}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
@@ -1582,13 +1601,14 @@ def scena_domu():
                          f'<div class="sc-dnes-p">podle stavu z {datum_cz(v["posledni_datum"])}</div></div>')
         else:
             dnes_html = ""
-        karty.append((e, "".join(r_.strip() for r_ in f"""
-<div class="sc-karta sc-energie" style="--acc:{barva}">
-  <div class="sc-hlava">{inf['ikona']} {inf['nazev']}<span class="sc-detail">detail ›</span></div>
-  <div class="sc-hodnota">{hodnota}</div>
-  <div class="sc-pod">{pod}{f' · <span style="color:{bz}">●</span> {stav}' if stav else ''}</div>
-  {dnes_html}
-</div>""".splitlines())))
+        zaklad = (f'<div class="sc-hlava">{inf["ikona"]} {inf["nazev"]}<span class="sc-detail">detail ›</span></div>'
+                  f'<div class="sc-hodnota">{hodnota}</div>'
+                  f'<div class="sc-pod">{pod}' + (f' · <span style="color:{bz}">●</span> {stav}' if stav else '') + '</div>')
+        # počítač: rozbalení najetím myší · telefon: rozbalení klepnutím (<details>)
+        mobil = (f'<details class="sc-karta sc-energie sc-mobil" style="--acc:{barva}"><summary>{zaklad}'
+                 + ('<div class="sc-klepni">Klepni pro vyúčtování dnes <span>▾</span></div>' if dnes_html else '')
+                 + f'</summary>{dnes_html.replace("sc-dnes", "sc-dnes sc-dnes-m", 1)}</details>')
+        karty.append((e, f'<div class="sc-karta sc-energie sc-pc" style="--acc:{barva}">{zaklad}{dnes_html}</div>' + mobil))
 
     svg = {"pruhony": svg_pruhony, "strkov": svg_strkov}.get(MISTO_KLIC, svg_obecny)()
     souhrn_html = "".join(souhrn) or '<div class="sc-r"><span>Zatím málo odečtů</span></div>'

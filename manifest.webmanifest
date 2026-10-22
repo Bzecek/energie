@@ -1,0 +1,24 @@
+{
+  "name": "Energie – spotřeba a zálohy",
+  "short_name": "Energie",
+  "description": "Spotřeba elektřiny, plynu a vody, zálohy a odhad vyúčtování.",
+  "lang": "cs",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "ikona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "ikona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "ikona-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "V Průhonech 384", "short_name": "Průhony", "url": "./?misto=pruhony",
+      "icons": [{ "src": "ikona-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Strkov 9", "short_name": "Strkov", "url": "./?misto=strkov",
+      "icons": [{ "src": "ikona-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}
