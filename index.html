@@ -68,6 +68,7 @@
   const parametry = new URLSearchParams(location.search);
   parametry.set("embed", "true");
   parametry.set("embed_options", "dark_theme");
+  parametry.set("pwa", "1");
   let posledniMisto = null;
   try { posledniMisto = localStorage.getItem("energie-misto"); } catch (e) {}
   if (!parametry.has("misto") && posledniMisto) parametry.set("misto", posledniMisto);

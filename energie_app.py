@@ -1025,6 +1025,48 @@ div.st-key-scena_obal div.st-key-karta_strkov_voda {{ left: 33%; top: auto; bott
   div[class*="st-key-karta_"]:hover .sc-energie {{ box-shadow: 0 8px 24px rgba(0,0,0,.35); border-color: rgba(148,163,184,.28); }}
   div[class*="st-key-karta_"] .sc-mobil[open] {{ border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }}
 }}
+/* ── mobilní navigace ── */
+div.st-key-mobil_mista, div.st-key-mobil_lista, div.st-key-mobil_vice {{ display: none; }}
+@media (max-width: 760px) {{
+  section[data-testid="stSidebar"], [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"],
+  header[data-testid="stHeader"] {{ display: none !important; }}
+  .block-container {{ padding-top: .6rem !important; padding-bottom: calc(7rem + var(--lista-navic, 0px)) !important; }}
+  div.st-key-mobil_mista {{ display: flex; gap: 6px; margin-bottom: 4px; }}
+  div.st-key-mobil_mista button {{ min-height: 2.4rem; border-radius: 999px; font-weight: 600; font-size: .85rem;
+    background: rgba(30,41,59,.6); border: 1px solid rgba(148,163,184,.2); color: #cbd5e1; }}
+  div.st-key-mobil_mista button:disabled {{ background: rgba(16,185,129,.16); border-color: rgba(16,185,129,.55);
+    color: #6ee7b7; opacity: 1; }}
+  div.st-key-mobil_lista {{ display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; gap: 2px;
+    background: rgba(10,16,30,.97); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(148,163,184,.18);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom) + var(--lista-navic, 0px)); }}
+  div.st-key-mobil_lista > div {{ flex: 1 1 0; min-width: 0; }}
+  div.st-key-mobil_lista button {{ width: 100%; min-height: 3.3rem; padding: 4px 2px; border: none; background: transparent;
+    color: #94a3b8; border-radius: 12px; box-shadow: none; }}
+  div.st-key-mobil_lista button > div, div.st-key-mobil_lista button span {{ flex-direction: column; gap: 1px; }}
+  div.st-key-mobil_lista button > div {{ display: flex; align-items: center; }}
+  div.st-key-mobil_lista button p {{ font-size: .68rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+  div.st-key-mobil_lista button [data-testid="stIconEmoji"], div.st-key-mobil_lista button span[role="img"] {{ font-size: 1.25rem; margin: 0; }}
+  div.st-key-mobil_lista button[kind="primary"], div.st-key-mobil_lista button[data-testid="stBaseButton-primary"] {{
+    color: #6ee7b7; background: rgba(16,185,129,.14); }}
+  div.st-key-mobil_vice {{ display: block; position: fixed; left: 8px; right: 8px; z-index: 999;
+    bottom: calc(4.6rem + env(safe-area-inset-bottom) + var(--lista-navic, 0px));
+    background: #111a2e; border: 1px solid rgba(148,163,184,.22); border-radius: 18px; padding: 12px;
+    box-shadow: 0 -10px 40px rgba(0,0,0,.55); animation: vysun .2s ease; }}
+  @keyframes vysun {{ from {{ transform: translateY(12px); opacity: 0; }} to {{ transform: none; opacity: 1; }} }}
+  .mv-titul {{ font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #64748b; margin: 0 4px 6px; }}
+  div.st-key-mobil_vice {{ box-sizing: border-box; width: auto !important; max-width: none; }}
+  div.st-key-mobil_vice [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+  div.st-key-mobil_vice_mrizka {{ display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }}
+  div.st-key-mobil_vice_mrizka > div, div.st-key-mobil_vice_mrizka [data-testid="stElementContainer"],
+  div.st-key-mobil_vice_mrizka .stButton {{ width: 100% !important; min-width: 0; }}
+  div.st-key-mobil_vice_mrizka button {{ width: 100% !important; min-height: 3rem; justify-content: flex-start; border-radius: 12px;
+    background: rgba(30,41,59,.7); border: 1px solid rgba(148,163,184,.15); color: #e2e8f0; font-size: .85rem; }}
+  div.st-key-mobil_vice_mrizka button[kind="primary"], div.st-key-mobil_vice_mrizka button[data-testid="stBaseButton-primary"] {{
+    background: rgba(16,185,129,.16); border-color: rgba(16,185,129,.55); color: #6ee7b7; }}
+  div.st-key-m_odhlasit button {{ margin-top: 6px; background: transparent; border: 1px solid rgba(148,163,184,.15);
+    color: #94a3b8; min-height: 2.4rem; border-radius: 12px; }}
+}}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -1272,6 +1314,62 @@ with st.sidebar:
         st.rerun()
 
 STRANKA = st.session_state["stranka"]
+
+# ─────────────────────────────────────────────
+# MOBILNÍ NAVIGACE – přepínač místa nahoře a spodní lišta (na počítači skrytá)
+# ─────────────────────────────────────────────
+def _prejdi(pid):
+    st.session_state["stranka"] = pid
+    st.session_state["vice_otevreno"] = False
+    st.session_state.pop("upravuji", None)
+    st.session_state.pop("mazu", None)
+
+
+def _prepni_misto(klic):
+    st.session_state["misto"] = klic
+    st.query_params["misto"] = klic
+    st.session_state["vice_otevreno"] = False
+    for k in ["upravuji", "mazu", "pdf_data"]:
+        st.session_state.pop(k, None)
+
+
+if st.query_params.get("pwa") == "1":
+    st.session_state["pwa"] = True
+if st.session_state.get("pwa"):
+    # v nainstalované appce je spodní okraj obrazovky o kousek níž (schovaná lišta Streamlit Cloudu)
+    st.markdown("<style>:root { --lista-navic: 14px; }</style>", unsafe_allow_html=True)
+
+with st.container(key="mobil_mista", horizontal=True):
+    for klic, mm in MISTA.items():
+        st.button(mm["nazev"], key=f"m_misto_{klic}", icon=mm["ikona"], on_click=_prepni_misto, args=(klic,),
+                  type="primary" if klic == MISTO_KLIC else "secondary", disabled=klic == MISTO_KLIC, width="stretch")
+
+VICE_STRANKY = [("platby", "💳", "Zálohy a platby"), ("spotrebice", "🔌", "Co kolik stojí"),
+                ("nabidky", "💡", "Porovnat nabídky"), ("pdf", "📄", "Roční PDF"),
+                ("historie", "📋", "Historie odečtů"), ("nastaveni", "⚙️", "Ceny a zálohy")]
+if st.session_state.get("vice_otevreno"):
+    with st.container(key="mobil_vice"):
+        st.markdown('<div class="mv-titul">Další</div>', unsafe_allow_html=True)
+        with st.container(key="mobil_vice_mrizka", horizontal=True):
+            for pid, ik, nazev in VICE_STRANKY:
+                st.button(nazev, key=f"m_vice_{pid}", icon=ik, on_click=_prejdi, args=(pid,),
+                          type="primary" if STRANKA == pid else "secondary")
+        if spravne_heslo() and st.button("Odhlásit", key="m_odhlasit", icon=":material/logout:", width="stretch"):
+            for k in ["prihlasen", "misto", "stranka", "misto_ohlaseno"]:
+                st.session_state.pop(k, None)
+            st.session_state["odhlaseno"] = True
+            st.query_params.clear()
+            st.rerun()
+
+with st.container(key="mobil_lista", horizontal=True):
+    polozky_listy = [("prehled", "🏠", "Přehled")] + [(e, ENERGIE[e]["ikona"], ENERGIE[e]["nazev"]) for e in PORADI]
+    for pid, ik, nazev in polozky_listy:
+        st.button(nazev, key=f"m_lista_{pid}", icon=ik, on_click=_prejdi, args=(pid,),
+                  type="primary" if STRANKA == pid and not st.session_state.get("vice_otevreno") else "secondary")
+    vice_aktivni = st.session_state.get("vice_otevreno") or STRANKA in [p[0] for p in VICE_STRANKY]
+    if st.button("Více", key="m_lista_vice", icon=":material/menu:", type="primary" if vice_aktivni else "secondary"):
+        st.session_state["vice_otevreno"] = not st.session_state.get("vice_otevreno")
+        st.rerun()
 
 
 def nadpis(text, pod=None):
