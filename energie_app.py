@@ -881,6 +881,41 @@ div.st-key-odhlasit button {{ color: #94a3b8; font-size: .85rem; min-height: 2re
   .sc-souhrn {{ grid-column: span 2; }}
   .sc-tok {{ display: none; }}
 }}
+div.st-key-scena_obal {{ position: relative; gap: 0; margin: 6px 0 16px; }}
+div.st-key-scena_obal .scena {{ margin: 0; }}
+div[class*="st-key-karta_"] {{ position: absolute; width: 11.5rem; gap: 0; z-index: 2; cursor: pointer;
+  transition: transform .15s ease; }}
+div[class*="st-key-karta_"]:hover {{ transform: translateY(-2px); z-index: 3; }}
+div[class*="st-key-karta_"]:hover .sc-energie {{ border-color: var(--acc); box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px var(--acc); }}
+div[class*="st-key-karta_"] [data-testid="stElementContainer"] {{ margin: 0; }}
+div[class*="st-key-skok_"] {{ position: absolute; inset: 0; z-index: 4; width: 100% !important; height: 100% !important; }}
+div[class*="st-key-skok_"] > div {{ width: 100% !important; height: 100% !important; }}
+div[class*="st-key-skok_"] button {{ position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }}
+.sc-energie {{ position: relative; left: auto; top: auto; width: 100%; min-width: 0; transition: border-color .15s, box-shadow .15s; }}
+.sc-detail {{ float: right; font-size: .66rem; color: #94a3b8; font-weight: 500; }}
+.sc-dnes {{ max-height: 0; opacity: 0; overflow: hidden; transition: max-height .25s ease, opacity .2s ease, margin .2s; }}
+div[class*="st-key-karta_"]:hover .sc-dnes {{ max-height: 140px; opacity: 1; margin-top: 8px; padding-top: 7px;
+  border-top: 1px solid rgba(148,163,184,.25); }}
+.sc-dnes-l {{ font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; }}
+.sc-dnes-v {{ font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 1px 0 2px; }}
+.sc-dnes-v span {{ font-size: .7rem; font-weight: 500; color: #94a3b8; }}
+.sc-dnes-p {{ font-size: .64rem; color: #64748b; margin-top: 3px; }}
+/* rozmístění karet – obecný domek */
+div[class*="st-key-karta_"][class*="_plyn"] {{ left: 56%; top: 6%; }}
+div[class*="st-key-karta_"][class*="_elektrina"] {{ left: 79%; top: 38%; }}
+div[class*="st-key-karta_"][class*="_voda"] {{ left: 25%; bottom: 5%; }}
+/* rozmístění karet – V Průhonech 384 */
+div.st-key-scena_obal div.st-key-karta_pruhony_plyn {{ left: 63%; top: 5%; }}
+div.st-key-scena_obal div.st-key-karta_pruhony_elektrina {{ left: auto; right: 2.5%; top: 50%; }}
+div.st-key-scena_obal div.st-key-karta_pruhony_voda {{ left: 33%; top: auto; bottom: 4%; }}
+@media (max-width: 760px) {{
+  div.st-key-scena_obal {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
+  div.st-key-scena_obal > div:first-child {{ grid-column: span 2; }}
+  div.st-key-scena_obal div.st-key-scena_obal div[class*="st-key-karta_"], div.st-key-scena_obal div[class*="st-key-karta_"][class*="_"] {{
+    position: relative; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; width: auto; }}
+  div[class*="st-key-karta_"] .sc-dnes {{ max-height: 140px; opacity: 1; margin-top: 8px; padding-top: 7px;
+    border-top: 1px solid rgba(148,163,184,.25); }}
+}}
 .gauge-title {{ text-align: center; font-size: .8rem; font-weight: 600; color: {BARVA_TEXT_TLUMENY};
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: -6px; }}
 .gauge-label {{ text-align: center; font-weight: 700; font-size: .95rem; margin-top: -18px; }}
@@ -1283,12 +1318,23 @@ def scena_domu():
                           f'<div class="sc-r sc-r2"><span>náklad</span><b>{kc(kc_den)} / den</b></div>')
         else:
             bz, stav, hodnota, pod = BARVA_PLAN, "", "–", "doplň aktuální stav"
-        karty.append(f"""
-<div class="sc-karta {cls}" style="--acc:{barva}">
-  <div class="sc-hlava">{inf['ikona']} {inf['nazev']}</div>
+        if v:
+            bd = v["bilance_dosud"]
+            dnes_html = (f'<div class="sc-dnes"><div class="sc-dnes-l">Kdyby vyúčtování bylo dnes</div>'
+                         f'<div class="sc-dnes-v" style="color:{BARVA_OK if bd >= 0 else BARVA_ZLE}">{kc_znamenko(bd)}'
+                         f' <span>{"přeplatek" if bd >= 0 else "nedoplatek"}</span></div>'
+                         f'<div class="sc-r sc-r2"><span>spotřebováno</span><b>{kc(v["naklad_dosud"])}</b></div>'
+                         f'<div class="sc-r sc-r2"><span>zaplaceno</span><b>{kc(v["zaplaceno_dosud"])}</b></div>'
+                         f'<div class="sc-dnes-p">podle stavu z {datum_cz(v["posledni_datum"])}</div></div>')
+        else:
+            dnes_html = ""
+        karty.append((e, "".join(r_.strip() for r_ in f"""
+<div class="sc-karta sc-energie" style="--acc:{barva}">
+  <div class="sc-hlava">{inf['ikona']} {inf['nazev']}<span class="sc-detail">detail ›</span></div>
   <div class="sc-hodnota">{hodnota}</div>
   <div class="sc-pod">{pod}{f' · <span style="color:{bz}">●</span> {stav}' if stav else ''}</div>
-</div>""")
+  {dnes_html}
+</div>""".splitlines())))
 
     plyn_cara = ('<path class="sc-tok" d="M 820 205 C 840 180, 850 165, 870 150" stroke="#f97316"/>' if "plyn" in PORADI else "")
     svg = svg_pruhony() if MISTO_KLIC == "pruhony" else f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -1351,7 +1397,6 @@ def scena_domu():
     {poc_html}
     <div class="sc-pod">{MISTO['obec']}</div>
   </div>
-  {''.join(karty)}
   <div class="sc-karta sc-souhrn">
     <div class="sc-hlava">Denní tempo</div>
     {souhrn_html}
@@ -1359,7 +1404,7 @@ def scena_domu():
     <div class="sc-r sc-r2"><span>měsíčně</span><b>≈ {kc(celkem_den * 30.4)}</b></div>
   </div>
 </div>"""
-    return "".join(radek.strip() for radek in html.splitlines())
+    return "".join(radek.strip() for radek in html.splitlines()), karty
 
 
 platby_html = []
@@ -1402,7 +1447,15 @@ if STRANKA == "prehled":
   </div>
 </div>
 """, unsafe_allow_html=True)
-  st.markdown(scena_domu(), unsafe_allow_html=True)
+  scena_html, karty_energii = scena_domu()
+  with st.container(key="scena_obal"):
+      st.markdown(scena_html, unsafe_allow_html=True)
+      for e_, karta_html in karty_energii:
+          with st.container(key=f"karta_{MISTO_KLIC}_{e_}"):
+              st.markdown(karta_html, unsafe_allow_html=True)
+              if st.button("Otevřít", key=f"skok_{e_}"):
+                  st.session_state["stranka"] = e_
+                  st.rerun()
 
 if STRANKA == "platby":
     nadpis("💳 Zálohy a platby", f"{MISTO['nazev']} · měsíční zálohy, účty a QR platby")
