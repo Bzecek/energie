@@ -163,13 +163,47 @@ STRKOV_TARIFY = [
     {"energie": "voda", **STRKOV_VODA},
 ]
 
+# Ctětín 59 – brácha Petr Dvořáček. PRE, D57d (20 h NT – přímotop/TČ), jistič 3x25 A, ČEZ Distribuce,
+# OM 8111259459, EAN 859182400702054429. Faktura PRE 189494979 (9. 7. 2025 – 3. 7. 2026: 5 802 kWh).
+# 5. 8. 2026 výměna elektroměru 1470209167 → 5100190283 (nový od 0 / 0).
+CTETIN_HISTORIE = [
+    ("2025-07-08", "elektrina", 62393, "odečet", "Faktura PRE 189494979 – počáteční stav · VT 21 723 + NT 40 670", "1470209167", 40670),
+    ("2025-08-31", "elektrina", 62872, "odečet", "Faktura PRE · VT 21 802 + NT 41 070", "1470209167", 41070),
+    ("2025-12-31", "elektrina", 65041, "odhad", "Faktura PRE (odhad) · VT 22 160 + NT 42 881", "1470209167", 42881),
+    ("2026-07-03", "elektrina", 68195, "odečet", "Faktura PRE (řádný odečet) · VT 22 681 + NT 45 514", "1470209167", 45514),
+    ("2026-08-04", "elektrina", 68382, "odečet", "Výměna elektroměru 5. 8. 2026 – konečný stav starého · VT 22 715 + NT 45 667", "1470209167", 45667),
+]
+CTETIN_ODECTY = [
+    ("2026-08-05", "elektrina", 0, "odečet", "Výměna elektroměru – nový elektroměr · VT 0 + NT 0", "5100190283", 0),
+    ("2026-10-14", "elektrina", 477, "vlastní", "VT 103 + NT 374", "5100190283", 374),
+    ("2026-10-25", "elektrina", 679, "vlastní", "VT 139 + NT 540", "5100190283", 540),
+]
+# Od 1. 10. 2026 PRE PROUD EXTRA 2 08/2026 (smlouva SoSSE/0008550748, fixace do 30. 6. 2028, sleva 4 000 Kč).
+# Ceny vč. 21 % DPH: obchod VT 2,54 / NT 2,24 Kč/kWh + distribuce ČEZ D57d 2026 (VT 0,75477 / NT 0,1165)
+# + systémové služby 0,16424 + daň 0,0283; měsíčně OM 129 + jistič 3x25 A 555 + nesíťová infrastruktura 12,87.
+CTETIN_TARIFY = [
+    {"energie": "elektrina", "dodavatel": "PRE", "cena_za_kwh": 4.21965, "cena_nt_kwh": 3.08434,
+     "kwh_na_jednotku": 1, "mesicni_platy": 843.21, "zaloha": 4000,
+     "obdobi_od": "2026-07-04", "stav_obdobi_od": 0, "obdobi_do": "2027-07-03",
+     "zaplaceno": 0, "zaplaceno_k_datu": "2026-07-04", "den_splatnosti": 24, "rezerva_pct": 0,
+     "cena_plati": "PRE PROUD EXTRA 2 od 1. 10. 2026 – fixace do 30. 6. 2028 (sleva 4 000 Kč)",
+     "ucet": "19-2784000277/0100", "vs": "21867051", "obchodni_kwh": 2.7703, "obchodni_mesic": 156.09,
+     "konec_smlouvy": "2028-06-30", "konec_popis": "Fixace ceny končí", "zalohy_do": "2027-05-24"},
+]
+# typický průběh roku u vytápění elektřinou (z faktury: léto ~6 kWh/den, zima ~20 kWh/den)
+PROFIL_CTETIN = {"elektrina": [13.5, 11.5, 10.9, 8.0, 6.0, 4.5, 4.0, 4.0, 5.0, 8.0, 11.0, 13.6]}
+
 MISTA = {
-    "pruhony": {"nazev": "V Průhonech 384", "obec": "Nasavrky", "ikona": "🏠", "popis": "Doma",
+    "pruhony": {"nazev": "V Průhonech 384", "obec": "Nasavrky", "ikona": "🏠", "popis": "Doma", "kratce": "Průhony",
                 "energie": ["plyn", "elektrina", "voda"], "list_odecty": "odecty", "list_tarify": "tarify",
                 "tarify": VYCHOZI_TARIFY},
-    "strkov": {"nazev": "Strkov 9", "obec": "Ctětín", "ikona": "🏡", "popis": "Mamka · Pavlína Dvořáčková",
+    "strkov": {"nazev": "Strkov 9", "obec": "Ctětín", "ikona": "🏡", "popis": "Mamka · Pavlína Dvořáčková", "kratce": "Strkov",
                "energie": ["elektrina", "voda"], "list_odecty": "odecty_strkov", "list_tarify": "tarify_strkov",
                "tarify": STRKOV_TARIFY, "odecty": STRKOV_ODECTY, "historie": STRKOV_HISTORIE},
+    "ctetin": {"nazev": "Ctětín 59", "obec": "Ctětín", "ikona": "🏘️", "popis": "Brácha · Petr Dvořáček", "kratce": "Ctětín",
+               "energie": ["elektrina"], "list_odecty": "odecty_ctetin", "list_tarify": "tarify_ctetin",
+               "tarify": CTETIN_TARIFY, "odecty": CTETIN_ODECTY, "historie": CTETIN_HISTORIE,
+               "profil": PROFIL_CTETIN},
 }
 DUVOD = {}  # proč u energie nejde nic spočítat (zobrazí se v záložce)
 
@@ -367,6 +401,24 @@ def rocni_odhad(rs, energie):
     return (posl["stav"] - ref["stav"]) / p if p > 0 else 0.0
 
 
+def retez(odecty, energie):
+    """Platné odečty všech měřidel navázané za sebe (nové měřidlo pokračuje tam, kde staré skončilo).
+    Vrací (řada, posun aktuálního měřidla) – stav v řadě = stav měřidla + posun."""
+    rs = platne_odecty(odecty, energie)
+    if rs.empty:
+        return rs, 0.0
+    poradi = list(dict.fromkeys(rs["meridlo"]))
+    casti, posun, konec = [], 0.0, None
+    for mr in poradi:
+        c = rs[rs["meridlo"] == mr].copy()
+        if konec is not None:
+            posun = konec - float(c.iloc[0]["stav"])
+        c["stav"] = c["stav"] + posun
+        konec = float(c.iloc[-1]["stav"])
+        casti.append(c)
+    return pd.concat(casti).sort_values("datum").reset_index(drop=True), posun
+
+
 def platby(t, dnes):
     """Zaplaceno a zbývající zálohy v období (záloha splatná každý měsíc v den splatnosti)."""
     zaplaceno = float(t["zaplaceno"])
@@ -462,11 +514,22 @@ def spocitej(energie, odecty, t, dnes):
                           f"{datum_cz(od)}. Zadej aktuální stav měřidla – stav na začátku období dopočítám.")
         return None
     A = rocni_odhad(rs, energie)
+    # krátce po výměně měřidla: roční odhad a začátek období dopočítat i ze starého měřidla
+    rr, posun = retez(odecty, energie)
+    if (posl["datum"] - rs.iloc[0]["datum"]).days < 300 and len(rr) > len(rs):
+        A = rocni_odhad(rr, energie)
 
     # stav na začátku období – ze zadání, jinak dopočet z odečtů okolo
     stav_od = float(t["stav_obdobi_od"] or 0)
     stav_od_odhad = False
-    if not stav_od > 0:
+    if not stav_od > 0 and rs[rs["datum"] <= od].empty and len(rr) > len(rs) and not rr[rr["datum"] <= od].empty:
+        pred, po = rr[rr["datum"] <= od], rr[rr["datum"] >= od]
+        a_, b_ = pred.iloc[-1], po.iloc[0]
+        p_all = podil(energie, a_["datum"], b_["datum"])
+        pom = podil(energie, a_["datum"], od) / p_all if p_all > 0 else 0
+        stav_od = a_["stav"] + (b_["stav"] - a_["stav"]) * pom - posun   # v jednotkách nového měřidla (může být < 0)
+        stav_od_odhad = True
+    elif not stav_od > 0:
         pred, po = rs[rs["datum"] <= od], rs[rs["datum"] >= od]
         b_ = po.iloc[0]
         if not pred.empty:
@@ -683,7 +746,7 @@ def obrazek_domu(misto, sirka=1600):
     """Ilustrace domu jako PNG (pro PDF). Bez knihovny resvg vrátí None."""
     try:
         import resvg_py
-        svg = {"pruhony": svg_pruhony, "strkov": svg_strkov}.get(misto, svg_obecny)()
+        svg = {"pruhony": svg_pruhony, "strkov": svg_strkov, "ctetin": svg_ctetin}.get(misto, svg_obecny)()
         return bytes(resvg_py.svg_to_bytes(svg_string=svg, width=sirka, height=int(sirka * 9 / 16)))
     except Exception:
         return None
@@ -786,7 +849,8 @@ def rocni_pdf(rok, odecty, tarif_podle, vysledky, misto):
 
     # karty energií na domě (stejné rozmístění jako v appce)
     pozice = {"pruhony": {"plyn": (0.63, 0.05, None), "elektrina": (None, 0.50, 0.025), "voda": (0.33, None, 0.04)},
-              "strkov": {"elektrina": (0.69, 0.05, None), "voda": (0.33, None, 0.04)}}.get(
+              "strkov": {"elektrina": (0.69, 0.05, None), "voda": (0.33, None, 0.04)},
+              "ctetin": {"elektrina": (0.62, 0.04, None)}}.get(
         misto, {"plyn": (0.56, 0.06, None), "elektrina": (0.74, 0.38, None), "voda": (0.25, None, 0.05)})
     kw, kh = 56, 25
     for d in data:
@@ -1066,6 +1130,7 @@ div.st-key-scena_obal div.st-key-karta_pruhony_elektrina {{ left: auto; right: 2
 div.st-key-scena_obal div.st-key-karta_pruhony_voda {{ left: 33%; top: auto; bottom: 4%; }}
 div.st-key-scena_obal div.st-key-karta_strkov_elektrina {{ left: 69%; top: 5%; }}
 div.st-key-scena_obal div.st-key-karta_strkov_voda {{ left: 33%; top: auto; bottom: 4%; }}
+div.st-key-scena_obal div.st-key-karta_ctetin_elektrina {{ left: 62%; top: 4%; }}
 @media (max-width: 760px) {{
   div.st-key-scena_obal {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
   div.st-key-scena_obal > div:first-child {{ grid-column: span 2; }}
@@ -1257,6 +1322,7 @@ if st.session_state.get("misto_ohlaseno") != MISTO_KLIC:   # nainstalovaná appk
     zprava_obalu("energie-misto:" + MISTO_KLIC)
     st.session_state["misto_ohlaseno"] = MISTO_KLIC
 PORADI = MISTO["energie"]
+PROFIL.update(MISTO.get("profil", {}))   # např. vytápění elektřinou má jiný průběh roku
 L_ODECTY, L_TARIFY = MISTO["list_odecty"], MISTO["list_tarify"]
 
 ul = Uloziste()
@@ -1413,7 +1479,7 @@ if st.session_state.get("pwa"):
 
 with st.container(key="mobil_mista", horizontal=True):
     for klic, mm in MISTA.items():
-        st.button(mm["nazev"], key=f"m_misto_{klic}", icon=mm["ikona"], on_click=_prepni_misto, args=(klic,),
+        st.button(mm.get("kratce", mm["nazev"]), key=f"m_misto_{klic}", icon=mm["ikona"], on_click=_prepni_misto, args=(klic,),
                   type="primary" if klic == MISTO_KLIC else "secondary", disabled=klic == MISTO_KLIC, width="stretch")
 
 VICE_STRANKY = [("platby", "💳", "Zálohy a platby"), ("spotrebice", "🔌", "Co kolik stojí"),
@@ -1645,6 +1711,141 @@ def svg_strkov():
 </svg>"""
 
 
+def svg_ctetin():
+    """Ilustrace domu Ctětín 59 (polovina dvojdomu, břidlicová střecha se střešním oknem, garáž dole,
+    schody ke vstupu v přístavku, tmavý dřevěný plot na betonové podezdívce) za soumraku."""
+    import random
+    rnd = random.Random(59)
+    hacky = "".join(f'<rect x="{x}" y="378" width="16" height="7" rx="1.5" fill="#3a2f2a"/>' for x in range(40, 1130, 74))
+    hacky += "".join(f'<rect x="{x}" y="300" width="14" height="6" rx="1.5" fill="#3a2f2a" opacity=".8"/>' for x in range(78, 1080, 92))
+    listi = "".join(
+        f'<ellipse cx="{rnd.randint(0, 1600)}" cy="{rnd.randint(866, 898)}" rx="{rnd.randint(4, 8)}" ry="{rnd.randint(2, 4)}" '
+        f'fill="{rnd.choice(["#b45309", "#c2410c", "#a16207", "#92400e"])}" opacity="{rnd.uniform(.6, .95):.2f}" '
+        f'/>'
+        for _ in range(70))
+    def kytky(x0, x1, y):
+        return "".join(f'<circle cx="{x}" cy="{y - rnd.randint(0, 9)}" r="{rnd.randint(5, 8)}" fill="{rnd.choice(["#dc2626", "#ef4444", "#f43f5e"])}"/>'
+                       for x in range(x0, x1, 11)) + \
+               "".join(f'<ellipse cx="{x}" cy="{y + 4}" rx="9" ry="5" fill="#2f5a2a"/>' for x in range(x0, x1, 15))
+    def okno(x, y, w=300, h=130, deleni=4):
+        sl = "".join(f'<rect x="{x + 6 + i * (w - 12) / deleni + 3}" y="{y + 6}" width="{(w - 12) / deleni - 6}" height="{h - 12}" fill="url(#okenkoC)"/>'
+                     for i in range(deleni))
+        return (f'<rect x="{x - 10}" y="{y - 10}" width="{w + 20}" height="{h + 22}" fill="#b9b6b0"/>'
+                f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="#e8e6e1"/>{sl}'
+                f'<rect x="{x - 8}" y="{y + h + 4}" width="{w + 16}" height="16" fill="#3a2a22"/>' + kytky(x + 2, x + w - 2, y + h + 2))
+    planky = "".join(f'<rect x="{x}" y="704" width="18" height="88" rx="1" fill="#3b2a24"/>' for x in range(316, 776, 26))
+    planky += "".join(f'<rect x="{x}" y="704" width="18" height="88" rx="1" fill="#3b2a24"/>' for x in range(858, 1460, 26))
+    branka = "".join(f'<rect x="{x}" y="706" width="16" height="150" fill="#33241f"/>' for x in range(0, 236, 22))
+    kolky = "".join(f'<rect x="{x}" y="560" width="10" height="{96 + (x % 3) * 5}" rx="1.5" fill="#8a6a4a"/>' for x in range(1440, 1600, 14))
+    bloky = "".join(f'<rect x="{x + (o * 36)}" y="{y}" width="70" height="22" fill="none" stroke="#5b5f63" stroke-width="1.4"/>'
+                    for o, y in enumerate(range(794, 860, 22)) for x in range(240, 1540, 72))
+    schody = "".join(f'<rect x="{850 + i * 30}" y="{772 - i * 18}" width="34" height="18" fill="#9ca3a8" stroke="#7b8187"/>' for i in range(11))
+    return f"""<svg class="sc-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="nebeC" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0d1734"/><stop offset=".4" stop-color="#2a3a6a"/>
+    <stop offset=".64" stop-color="#7a5a86"/><stop offset=".82" stop-color="#e79a6a"/><stop offset="1" stop-color="#f6c98a"/>
+  </linearGradient>
+  <linearGradient id="okenkoC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c2"/><stop offset="1" stop-color="#f4a43a"/></linearGradient>
+  <linearGradient id="zedC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1efea"/><stop offset="1" stop-color="#cdc9c1"/></linearGradient>
+  <radialGradient id="svitC" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".6"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+  <pattern id="bridliceC" width="30" height="30" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="30" height="30" fill="#565b60"/><path d="M0 0 H30 M0 0 V30" stroke="#3c4044" stroke-width="2.6"/>
+    <path d="M3 3 H27" stroke="#6c7176" stroke-width="1.2" opacity=".7"/>
+  </pattern>
+  <pattern id="travaC" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#2f4a2a"/>
+    <path d="M3 20 L5 12 M10 20 L11 13 M16 20 L15 11" stroke="#41693a" stroke-width="2"/></pattern>
+</defs>
+<rect width="1600" height="900" fill="url(#nebeC)"/>
+<g fill="#fff" opacity=".75"><circle cx="120" cy="60" r="1.5"/><circle cx="300" cy="40" r="1.2"/><circle cx="880" cy="50" r="1.4"/>
+<circle cx="1180" cy="90" r="1.2"/><circle cx="1330" cy="40" r="1.6"/><circle cx="1540" cy="120" r="1.1"/></g>
+<g fill="#e8d9ef" opacity=".18"><ellipse cx="1000" cy="150" rx="220" ry="26"/><ellipse cx="1350" cy="210" rx="260" ry="22"/></g>
+<!-- stromy vzadu -->
+<g fill="#1f3a2c"><polygon points="1490,250 1430,470 1550,470"/><polygon points="1490,300 1415,560 1565,560"/>
+<polygon points="1490,380 1400,640 1580,640"/></g>
+<ellipse cx="1590" cy="470" rx="90" ry="150" fill="#3a5a2c"/><ellipse cx="1560" cy="380" rx="60" ry="90" fill="#6a5a24" opacity=".9"/>
+<ellipse cx="760" cy="560" rx="700" ry="260" fill="url(#svitC)" opacity=".4"/>
+<!-- zahrada za plotem -->
+<rect x="0" y="680" width="1600" height="190" fill="#34402f"/>
+<g fill="#2f5a2a"><ellipse cx="1520" cy="640" rx="110" ry="70"/><ellipse cx="1600" cy="600" rx="80" ry="90"/></g>
+<!-- přístavek se vstupem -->
+<rect x="1150" y="452" width="290" height="250" fill="url(#zedC)"/>
+<rect x="1140" y="436" width="310" height="22" fill="#e6e3dd"/><rect x="1140" y="456" width="310" height="5" fill="#000" opacity=".15"/>
+<rect x="1176" y="476" width="128" height="226" fill="#d9d5cd"/>
+<rect x="1196" y="520" width="62" height="182" fill="#4a2c22"/><rect x="1204" y="530" width="46" height="70" fill="#f4c27a" opacity=".35"/>
+<circle cx="1227" cy="500" r="7" fill="#fde68a"/><circle cx="1227" cy="500" r="40" fill="url(#svitC)"/>
+<rect x="1276" y="540" width="6" height="150" fill="#9a5a2a"/><circle cx="1279" cy="600" r="6" fill="#ea580c"/><circle cx="1279" cy="640" r="5" fill="#f59e0b"/>
+<rect x="1318" y="556" width="104" height="22" fill="#2a2a2a"/>{kytky(1322, 1418, 556)}
+<rect x="1318" y="578" width="122" height="124" fill="url(#zedC)"/>
+<!-- stožár přípojky a vedení -->
+<line x1="1168" y1="436" x2="1168" y2="292" stroke="#9ca3af" stroke-width="6"/>
+<g fill="#d1d5db"><rect x="1156" y="294" width="24" height="6" rx="2"/><rect x="1156" y="306" width="24" height="6" rx="2"/></g>
+<g stroke="#141a26" stroke-width="2" fill="none" opacity=".85">
+  <path d="M 1168 296 Q 1390 190, 1600 70"/><path d="M 1168 308 Q 1390 205, 1600 90"/>
+</g>
+<!-- hlavní dům – zeď -->
+<rect x="0" y="392" width="1166" height="412" fill="url(#zedC)"/>
+<rect x="0" y="392" width="1166" height="14" fill="#000" opacity=".12"/>
+<!-- jednotná břidlicová střecha přes celý dvojdům -->
+<polygon points="0,120 1036,120 1172,392 0,392" fill="url(#bridliceC)"/>
+<polygon points="0,120 1036,120 1046,134 0,134" fill="#2f3337"/>
+{hacky}
+<line x1="1036" y1="120" x2="1176" y2="396" stroke="#3b2a22" stroke-width="10" stroke-linecap="round"/>
+<rect x="0" y="388" width="1180" height="12" fill="#3b2a22"/>
+<!-- střešní okno -->
+<polygon points="300,268 322,206 404,206 386,268" fill="#2b2f33"/>
+<polygon points="310,262 328,212 396,212 380,262" fill="#f4c27a" opacity=".55"/>
+<!-- komín -->
+<rect x="520" y="36" width="42" height="96" fill="#5a3b30"/>
+<g stroke="#3f2a22" stroke-width="2">{''.join(f'<line x1="520" y1="{y}" x2="562" y2="{y}"/>' for y in range(48, 132, 12))}</g>
+<rect x="514" y="30" width="54" height="10" fill="#3f2a22"/>
+<!-- anténa -->
+<g stroke="#4b5563" stroke-width="3" fill="none"><line x1="720" y1="120" x2="720" y2="44"/><line x1="696" y1="56" x2="744" y2="56"/></g>
+<!-- okna s muškáty -->
+{okno(110, 440)}
+{okno(640, 440)}
+<rect x="40" y="476" width="14" height="10" fill="#e5e7eb"/>
+<!-- stříška a garáž -->
+<polygon points="0,612 470,612 482,632 0,632" fill="#6b3a2a"/><rect x="0" y="632" width="482" height="8" fill="#4a2a20"/>
+<rect x="150" y="644" width="226" height="160" fill="#3a2a22"/>
+<g stroke="#2a1d17" stroke-width="2">{''.join(f'<line x1="{x}" y1="644" x2="{x}" y2="804"/>' for x in range(170, 376, 22))}</g>
+<line x1="263" y1="644" x2="263" y2="804" stroke="#1f1612" stroke-width="4"/>
+<!-- sklepní okénka -->
+<rect x="600" y="648" width="46" height="42" fill="#4a3a30"/><rect x="606" y="654" width="34" height="30" fill="url(#okenkoC)" opacity=".55"/>
+<rect x="860" y="640" width="46" height="42" fill="#4a3a30"/><rect x="866" y="646" width="34" height="30" fill="#2a2522"/>
+<!-- schody a zábradlí -->
+{schody}
+<rect x="850" y="790" width="340" height="14" fill="#8a9095"/>
+<g stroke="#4a2a22" stroke-width="5" fill="none"><path d="M 846 700 L 1176 504"/><path d="M 846 700 L 846 790"/>
+<path d="M 1011 602 L 1011 694"/><path d="M 1176 504 L 1176 592"/></g>
+<!-- zeleň u domu -->
+<ellipse cx="1110" cy="772" rx="40" ry="22" fill="#2f5a2a"/>{kytky(1090, 1130, 760)}
+<!-- podezdívka, sloupky a plot -->
+<rect x="240" y="792" width="1300" height="68" fill="#8b8f93"/>{bloky}
+<rect x="236" y="788" width="1308" height="6" fill="#a3a7ab"/>
+{planky}
+<rect x="310" y="716" width="470" height="6" fill="#2a1d17" opacity=".7"/><rect x="852" y="716" width="610" height="6" fill="#2a1d17" opacity=".7"/>
+<g fill="#93979b" stroke="#6f7377" stroke-width="2">
+  <rect x="240" y="684" width="72" height="176"/><rect x="780" y="684" width="72" height="176"/><rect x="1460" y="660" width="82" height="200"/>
+</g>
+<g fill="#a9adb1"><rect x="234" y="678" width="84" height="10"/><rect x="774" y="678" width="84" height="10"/><rect x="1454" y="654" width="94" height="10"/></g>
+{kolky}
+<rect x="1440" y="588" width="160" height="6" fill="#6a4f37"/><rect x="1440" y="626" width="160" height="6" fill="#6a4f37"/>
+<!-- branka s číslem a schránkou -->
+{branka}
+<rect x="0" y="724" width="236" height="8" fill="#241915"/><rect x="0" y="820" width="236" height="8" fill="#241915"/>
+<text x="118" y="768" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" fill="#d6d3cd">59</text>
+<rect x="150" y="784" width="58" height="40" rx="5" fill="#4a3428"/><rect x="158" y="794" width="42" height="5" fill="#1c130f"/>
+<!-- tráva a listí -->
+<rect x="0" y="856" width="1600" height="44" fill="url(#travaC)"/>
+{listi}
+<!-- tok energie po přípojce -->
+<g fill="none" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round">
+  <path class="sc-tok" d="M 1600 80 Q 1390 198, 1168 302" stroke="#facc15"/>
+</g>
+</svg>"""
+
+
 def svg_pruhony():
     """Ilustrace domu V Průhonech 384 (bungalov s valbovou střechou, cihlový plot) za soumraku."""
     sloupky = [60, 460, 760, 1040, 1150, 1460]
@@ -1813,7 +2014,7 @@ def scena_domu():
                  + f'</summary>{dnes_html.replace("sc-dnes", "sc-dnes sc-dnes-m", 1)}</details>')
         karty.append((e, f'<div class="sc-karta sc-energie sc-pc" style="--acc:{barva}">{zaklad}{dnes_html}</div>' + mobil))
 
-    svg = {"pruhony": svg_pruhony, "strkov": svg_strkov}.get(MISTO_KLIC, svg_obecny)()
+    svg = {"pruhony": svg_pruhony, "strkov": svg_strkov, "ctetin": svg_ctetin}.get(MISTO_KLIC, svg_obecny)()
     souhrn_html = "".join(souhrn) or '<div class="sc-r"><span>Zatím málo odečtů</span></div>'
     html = f"""
 <div class="scena scena-{MISTO_KLIC}">
@@ -2123,7 +2324,9 @@ for e in [x for x in PORADI if x == STRANKA]:
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=f"graf_{e}")
         st.markdown(f'<div class="pozn">Od {datum_cz(od)}: {cislo(v["pouzito"], 1)} {info["jednotka"]}, '
                     f'plán {cislo(v["plan"], 1)} {info["jednotka"]}. Plán = roční odhad rozložený podle typického průběhu roku.'
-                    + (f' Stav na začátku období ({cislo(v["stav_od"], 0)}) je dopočítaný z odečtů okolo.' if v["stav_od_odhad"] else '')
+                    + ((f' Zahrnuje i {cislo(-v["stav_od"], 0)} {info["jednotka"]} naměřených na původním měřidle před jeho výměnou.'
+                        if v["stav_od"] < 0 else
+                        f' Stav na začátku období ({cislo(v["stav_od"], 0)}) je dopočítaný z odečtů okolo.') if v["stav_od_odhad"] else '')
                     + (f' Cena je průměr VT/NT podle tvé spotřeby (NT {v["podil_nt"] * 100:.0f} %).' if v["podil_nt"] is not None else '')
                     + '</div>',
                     unsafe_allow_html=True)
